@@ -209,3 +209,211 @@
 @media (max-width: 640px) {
     .happy-card, .happy-card-inner { min-height: 190px; }
 }
+
+/* =========================
+   RESPONSIVE PATCH
+   Menyesuaikan tampilan HP, tablet, dan laptop tanpa mengubah fitur yang sudah ada.
+========================= */
+.site-header {
+    min-height: 68px;
+}
+.main-layout {
+    transition: padding .2s ease, gap .2s ease;
+}
+.map-panel {
+    min-height: 0;
+}
+.map-toolbar {
+    gap: .75rem;
+}
+.map-toolbar > div {
+    min-width: 0;
+}
+.leaflet-container {
+    font-family: inherit;
+}
+
+@media (max-width: 1280px) {
+    .site-header {
+        padding-left: 1rem !important;
+        padding-right: 1rem !important;
+    }
+    .site-header .hidden.md\:flex {
+        gap: .75rem !important;
+    }
+    .site-header .hidden.md\:flex > div,
+    .site-header .hidden.md\:flex > button {
+        flex-shrink: 0;
+    }
+}
+
+@media (max-width: 1024px) {
+    body {
+        overflow-y: auto;
+    }
+    .site-header {
+        gap: .75rem;
+    }
+    .main-layout {
+        display: flex !important;
+        flex-direction: column;
+        height: auto !important;
+        min-height: calc(100dvh - 76px);
+        max-width: 100% !important;
+        padding: .85rem !important;
+        gap: .85rem !important;
+    }
+    .map-panel {
+        order: 1;
+        height: 65dvh !important;
+        min-height: 520px;
+        border-width: 2px !important;
+        border-radius: 1.5rem !important;
+    }
+    .sidebar-panel {
+        order: 2;
+        max-height: none !important;
+        overflow: visible !important;
+        padding-right: 0 !important;
+        padding-bottom: 2rem !important;
+    }
+    .map-toolbar {
+        flex-wrap: wrap;
+        align-items: center !important;
+        padding: .8rem !important;
+    }
+    .map-toolbar > div {
+        flex-wrap: wrap;
+    }
+    #map-leaflet,
+    #map-cesium {
+        min-height: 100%;
+    }
+}
+
+@media (max-width: 768px) {
+    .site-header {
+        padding: .65rem .85rem !important;
+    }
+    .site-header .w-10 {
+        width: 2.25rem !important;
+        height: 2.25rem !important;
+    }
+    .site-header .text-lg {
+        font-size: 1rem !important;
+    }
+    .site-header .tracking-widest {
+        letter-spacing: .12em !important;
+    }
+    .main-layout {
+        padding: .65rem !important;
+    }
+    .map-panel {
+        height: 60dvh !important;
+        min-height: 430px;
+        border-radius: 1.25rem !important;
+    }
+    .map-toolbar {
+        align-items: stretch !important;
+    }
+    .map-toolbar > div {
+        width: 100%;
+        justify-content: space-between;
+    }
+    .map-toolbar button {
+        white-space: nowrap;
+    }
+    .leaflet-control-zoom {
+        transform: scale(.9);
+        transform-origin: top left;
+    }
+    .leaflet-popup-content-wrapper {
+        max-width: min(86vw, 340px);
+    }
+    #happy-card-modal,
+    #breathing-modal {
+        padding: .75rem !important;
+    }
+    .happy-game-shell {
+        border-radius: 1.5rem !important;
+        max-height: 92dvh;
+    }
+    .happy-game-shell .relative.z-10 {
+        padding: 1.25rem !important;
+    }
+}
+
+@media (max-width: 640px) {
+    #intro-screen {
+        padding: 1rem !important;
+    }
+    #intro-screen h1 {
+        font-size: clamp(2.4rem, 15vw, 4rem) !important;
+        line-height: .95 !important;
+    }
+    #intro-screen h3 {
+        font-size: 1rem !important;
+    }
+    #intro-screen p {
+        font-size: .78rem !important;
+    }
+    .main-layout {
+        padding: .5rem !important;
+        gap: .75rem !important;
+    }
+    .map-panel {
+        height: 58dvh !important;
+        min-height: 380px;
+    }
+    .map-toolbar {
+        flex-direction: column;
+        gap: .55rem !important;
+    }
+    .map-toolbar > div:first-child {
+        justify-content: flex-start;
+    }
+    .map-toolbar > div:last-child {
+        display: grid !important;
+        grid-template-columns: 1fr 1fr;
+        gap: .5rem;
+    }
+    .map-toolbar button {
+        padding-left: .75rem !important;
+        padding-right: .75rem !important;
+        min-height: 38px;
+    }
+    .sidebar-panel > div {
+        border-radius: 1.35rem !important;
+        padding: 1rem !important;
+    }
+    .happy-card,
+    .happy-card-inner {
+        min-height: 180px;
+    }
+    .happy-back-text {
+        font-size: 13px;
+    }
+    .leaflet-popup-content-wrapper {
+        max-width: 88vw;
+    }
+}
+
+@media (max-width: 420px) {
+    .site-header {
+        padding-left: .65rem !important;
+        padding-right: .65rem !important;
+    }
+    .site-header .flex.flex-col span:first-child {
+        max-width: 140px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+    .map-panel {
+        height: 56dvh !important;
+        min-height: 350px;
+    }
+    .map-toolbar > div:last-child {
+        grid-template-columns: 1fr;
+    }
+}

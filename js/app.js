@@ -1642,6 +1642,39 @@ window.exitIntroScreen = function() {
 };
 
 
+
+
+/* =========================
+   RESPONSIVE NAVIGATION: BACK TO DASHBOARD
+   Hanya menampilkan lagi layar dashboard awal tanpa mengubah fitur lain.
+========================= */
+window.backToDashboard = function() {
+    const intro = document.getElementById('intro-screen');
+    const happyModal = document.getElementById('happy-card-modal');
+    const breathingModal = document.getElementById('breathing-modal');
+
+    if (happyModal) {
+        happyModal.classList.add('hidden');
+        happyModal.classList.remove('flex');
+    }
+    if (breathingModal) {
+        breathingModal.classList.add('hidden');
+        if (typeof breathInterval !== 'undefined') clearInterval(breathInterval);
+    }
+
+    if (intro) {
+        intro.style.display = 'flex';
+        intro.style.opacity = '0';
+        requestAnimationFrame(() => {
+            intro.style.opacity = '1';
+        });
+    }
+
+    const statusEl = document.getElementById('system-status');
+    if (statusEl) statusEl.textContent = '🏠 Kembali ke dashboard awal.';
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+};
+
 /* =========================
    GITHUB PAGES STABILITY PATCH
 ========================= */
