@@ -43,6 +43,14 @@ const locations = [
 let leafletMap, leafletMarkerGroup, leafletGeometries = [], boundaryLayer2D;
 let cesiumViewer, cesiumEntities = [], currentEngine = '2d';
 let cesiumReady = false;
+let cesiumOsmBuildingEntities = [];
+let cesiumFallbackBuildingEntities = [];
+let avatarParts = [];
+let avatarState = { lat: -7.7712, lng: 110.3995, heading: 0, speed: 0 };
+let gameModeActive = false;
+let gameLoopId = null;
+let pressedKeys = new Set();
+let lastDetectedZoneName = null;
 
 // State Jarak Manual Asli
 let distancePointA = null, distancePointB = null, distanceMarkerA = null, distanceMarkerB = null, distanceLine = null;
@@ -77,22 +85,35 @@ leafletMarkerGroup = L.layerGroup().addTo(leafletMap);
 analyticsLayersGroup = L.layerGroup().addTo(leafletMap); // Layer khusus buat Heatmap & Buffer
 
 /* =========================
-   INITIALIZE 3D CESIUM ENGINE (AMAN UNTUK GITHUB PAGES)
-   Jika CDN/Cesium gagal, fitur 2D tetap jalan.
+   INITIALIZE 3D CESIUM ENGINE
+   Versi ini tidak bergantung pada Cesium Ion agar lebih aman di GitHub Pages.
+   Bangunan 3D diambil dari Overpass OSM. Jika API lambat, sistem membuat fallback 3D block.
 ========================= */
 function set3DUnavailable(message) {
     const statusEl = document.getElementById('system-status');
     const btn3d = document.getElementById('btn-3d');
+    const gameBtn = document.getElementById('btn-start-game');
     if (statusEl && message) statusEl.textContent = message;
     if (btn3d) {
         btn3d.classList.add('opacity-50', 'cursor-not-allowed');
-        btn3d.title = '3D tidak aktif. Cek koneksi, token Cesium, atau dukungan WebGL browser.';
+        btn3d.title = '3D tidak aktif. Cek koneksi CDN Cesium atau dukungan WebGL browser.';
     }
+    if (gameBtn) gameBtn.classList.add('hidden');
 }
 
-if (typeof Cesium !== 'undefined') {
+function safeStatus(message) {
+    const statusEl = document.getElementById('system-status');
+    if (statusEl && message) statusEl.textContent = message;
+}
+
+function initCesiumEngine() {
+    if (typeof Cesium === 'undefined') {
+        cesiumReady = false;
+        set3DUnavailable('2D aktif. Cesium CDN gagal dimuat.');
+        return;
+    }
+
     try {
-        Cesium.Ion.defaultAccessToken = CESIUM_TOKEN;
         cesiumViewer = new Cesium.Viewer('map-cesium', {
             baseLayerPicker: false,
             animation: false,
@@ -101,47 +122,140 @@ if (typeof Cesium !== 'undefined') {
             navigationHelpButton: false,
             geocoder: false,
             fullscreenButton: false,
+            homeButton: false,
             infoBox: true,
-            requestRenderMode: false 
+            selectionIndicator: false,
+            shouldAnimate: true,
+            terrainProvider: new Cesium.EllipsoidTerrainProvider(),
+            imageryProvider: new Cesium.UrlTemplateImageryProvider({
+                url: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                maximumLevel: 19,
+                credit: '© OpenStreetMap contributors'
+            }),
+            requestRenderMode: false
         });
-
-        cesiumViewer.imageryLayers.removeAll();
-        cesiumViewer.imageryLayers.addImageryProvider(
-            new Cesium.ArcGisMapServerImageryProvider({
-                url: 'https://services.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer'
-            })
-        );
 
         cesiumViewer.scene.globe.enableLighting = false;
         cesiumViewer.scene.globe.depthTestAgainstTerrain = false;
+        cesiumViewer.scene.skyAtmosphere.show = true;
+        cesiumViewer.scene.fog.enabled = true;
+        cesiumViewer.scene.screenSpaceCameraController.enableCollisionDetection = false;
         if (cesiumViewer.cesiumWidget?.creditContainer) {
             cesiumViewer.cesiumWidget.creditContainer.style.display = 'none';
         }
 
-        cesiumReady = true;
-
-        Cesium.createOsmBuildingsAsync()
-            .then(tileset => {
-                if (!cesiumReady || !cesiumViewer) return;
-                cesiumViewer.scene.primitives.add(tileset);
-                tileset.style = new Cesium.Cesium3DTileStyle({ 
-                    color: "color('rgb(255, 255, 255)', 0.95)" 
-                });
-            })
-            .catch(e => console.warn('OSM Buildings dilompati:', e));
-
         cesiumViewer.camera.setView({
-            destination: Cesium.Cartesian3.fromDegrees(110.3995, -7.79, 3000.0),
-            orientation: { heading: 0.0, pitch: Cesium.Math.toRadians(-40.0), roll: 0.0 }
+            destination: Cesium.Cartesian3.fromDegrees(110.3995, -7.7712, 1500.0),
+            orientation: { heading: 0.0, pitch: Cesium.Math.toRadians(-45.0), roll: 0.0 }
         });
+
+        cesiumReady = true;
+        document.getElementById('btn-start-game')?.classList.remove('hidden');
+        loadOSMBuildings3D();
+        initAvatar3D();
     } catch(e) {
         cesiumReady = false;
         console.warn('Cesium gagal dimuat, mode 2D tetap berjalan:', e);
         set3DUnavailable('2D aktif. 3D tidak tersedia di browser ini.');
     }
-} else {
-    cesiumReady = false;
-    set3DUnavailable('2D aktif. Cesium CDN gagal dimuat.');
+}
+
+initCesiumEngine();
+
+function parseOsmHeight(tags = {}) {
+    const rawHeight = String(tags.height || '').replace(',', '.').match(/[0-9.]+/);
+    if (rawHeight) return Math.min(80, Math.max(4, Number(rawHeight[0])));
+    const levels = Number(tags['building:levels'] || tags.levels || 0);
+    if (Number.isFinite(levels) && levels > 0) return Math.min(80, Math.max(4, levels * 3.2));
+    return 10 + Math.floor(Math.abs(Math.sin((tags.name || 'building').length)) * 12);
+}
+
+function getProjectBounds() {
+    const lats = locations.map(loc => loc.coord[0]);
+    const lngs = locations.map(loc => loc.coord[1]);
+    return {
+        south: Math.min(...lats) - 0.01,
+        west: Math.min(...lngs) - 0.01,
+        north: Math.max(...lats) + 0.01,
+        east: Math.max(...lngs) + 0.01
+    };
+}
+
+async function loadOSMBuildings3D() {
+    if (!cesiumReady || !cesiumViewer || typeof Cesium === 'undefined') return;
+    const bounds = getProjectBounds();
+    const query = `
+        [out:json][timeout:18];
+        (
+          way["building"](${bounds.south},${bounds.west},${bounds.north},${bounds.east});
+        );
+        out geom;
+    `;
+
+    try {
+        safeStatus('3D: mengambil geometri bangunan OSM...');
+        const res = await fetch('https://overpass-api.de/api/interpreter', {
+            method: 'POST',
+            headers: { 'Content-Type': 'text/plain;charset=UTF-8' },
+            body: query
+        });
+        if (!res.ok) throw new Error(`Overpass ${res.status}`);
+        const data = await res.json();
+        const ways = (data.elements || []).filter(el => el.type === 'way' && Array.isArray(el.geometry) && el.geometry.length >= 3).slice(0, 180);
+        if (!ways.length) throw new Error('Tidak ada geometri bangunan dari OSM');
+
+        cesiumOsmBuildingEntities.forEach(entity => cesiumViewer.entities.remove(entity));
+        cesiumOsmBuildingEntities = [];
+        ways.forEach((way, index) => {
+            const positions = [];
+            way.geometry.forEach(pt => {
+                positions.push(pt.lon, pt.lat);
+            });
+            const height = parseOsmHeight(way.tags || {});
+            const entity = cesiumViewer.entities.add({
+                name: way.tags?.name || `OSM Building ${index + 1}`,
+                polygon: {
+                    hierarchy: Cesium.Cartesian3.fromDegreesArray(positions),
+                    height: 0,
+                    extrudedHeight: height,
+                    material: Cesium.Color.LIGHTGRAY.withAlpha(0.58),
+                    outline: true,
+                    outlineColor: Cesium.Color.WHITE.withAlpha(0.35)
+                }
+            });
+            cesiumOsmBuildingEntities.push(entity);
+        });
+        safeStatus(`3D aktif: ${ways.length} bangunan OSM dimuat.`);
+    } catch (err) {
+        console.warn('OSM 3D buildings gagal, fallback 3D dibuat:', err);
+        createFallbackBuildings3D();
+        safeStatus('3D aktif dengan fallback building. OSM API sedang lambat atau dibatasi.');
+    }
+}
+
+function createFallbackBuildings3D() {
+    if (!cesiumReady || !cesiumViewer || typeof Cesium === 'undefined') return;
+    cesiumFallbackBuildingEntities.forEach(entity => cesiumViewer.entities.remove(entity));
+    cesiumFallbackBuildingEntities = [];
+    const base = locations.slice(0, 22);
+    base.forEach((loc, index) => {
+        const ring = (index % 5) + 1;
+        const angle = index * 1.714;
+        const lat = loc.coord[0] + Math.sin(angle) * 0.0014 * ring;
+        const lng = loc.coord[1] + Math.cos(angle) * 0.0014 * ring;
+        const height = 12 + (index % 6) * 5;
+        const entity = cesiumViewer.entities.add({
+            name: `Fallback 3D Building ${index + 1}`,
+            position: Cesium.Cartesian3.fromDegrees(lng, lat, height / 2),
+            box: {
+                dimensions: new Cesium.Cartesian3(28 + (index % 3) * 10, 28 + (index % 4) * 8, height),
+                material: Cesium.Color.SILVER.withAlpha(0.55),
+                outline: true,
+                outlineColor: Cesium.Color.WHITE.withAlpha(0.35)
+            }
+        });
+        cesiumFallbackBuildingEntities.push(entity);
+    });
 }
 
 /* =========================
@@ -170,9 +284,9 @@ window.updateSidebarInfo = function(loc) {
             <div class="mt-auto pt-3 border-t border-slate-200">
                 <p class="text-[11px] text-slate-500 font-medium leading-relaxed flex items-start gap-1.5"><span class="text-rose-400 text-base">📍</span> ${loc.alamat}</p>
             </div>
-            <button onclick="calculateRoute(${loc.coord[0]}, ${loc.coord[1]}, '${loc.name.replace(/'/g, "\\'")}')" 
-                class="mt-4 w-full py-2.5 bg-gradient-to-r from-sky-500 to-indigo-500 hover:from-sky-600 hover:to-indigo-600 text-white text-xs font-bold rounded-xl shadow-lg transition-transform active:scale-95 flex justify-center items-center gap-2">
-                🚗 Rute Navigasi Kesini
+            <button onclick="focusLocationIn3D(${loc.coord[0]}, ${loc.coord[1]}, '${loc.name.replace(/'/g, "\\'")}')" 
+                class="mt-4 w-full py-2.5 bg-gradient-to-r from-violet-500 to-indigo-500 hover:from-violet-600 hover:to-indigo-600 text-white text-xs font-bold rounded-xl shadow-lg transition-transform active:scale-95 flex justify-center items-center gap-2">
+                🎮 Lihat di 3D Game
             </button>
         </div>
     `;
@@ -343,11 +457,15 @@ window.findNearestRelaxation = function() {
         if (nearestLoc) {
             const distKm = (minDistance / 1000).toFixed(2);
             const sourceText = fromGps ? 'posisi GPS' : 'titik tengah peta';
-            alert(`Lokasi anti-stres terdekat dari ${sourceText}: ${nearestLoc.name} (${distKm} km). Rute sedang dihitung.`);
-            document.querySelector(`input[name="route-mode"][value="${minDistance < 1500 ? 'foot' : 'driving'}"]`).checked = true;
+            alert(`Lokasi anti-stres terdekat dari ${sourceText}: ${nearestLoc.name} (${distKm} km). Peta difokuskan ke lokasi tersebut.`);
+            const routeRadio = document.querySelector(`input[name="route-mode"][value="${minDistance < 1500 ? 'foot' : 'driving'}"]`);
+            if (routeRadio) routeRadio.checked = true;
             updateSidebarInfo(nearestLoc);
             updateSpatialAnalysisOutput(generateLocationAnalysisHTML(nearestLoc));
-            calculateRoute(nearestLoc.coord[0], nearestLoc.coord[1], nearestLoc.name);
+            if (routingLayer2D) { leafletMap.removeLayer(routingLayer2D); routingLayer2D = null; }
+            if (userLocationMarker) { leafletMap.removeLayer(userLocationMarker); userLocationMarker = null; }
+            leafletMap.setView(nearestLoc.coord, 17);
+            safeStatus(`Lokasi relaksasi terdekat: ${nearestLoc.name}, jarak ${distKm} km.`);
         } else {
             statusEl.textContent = '❌ Tidak ada data RTH yang aktif.';
         }
@@ -651,7 +769,354 @@ window.toggleAnalyticsLayers = function() {
     }
 
     document.getElementById('system-status').textContent = `📊 ${messages.join(' | ')}`;
+    renderCesiumFeatures();
     if (heatOn || bufferOn) window.runSpatialAnalysis();
+};
+
+/* =========================
+   FITUR 4B: 3D GAME MODE + ZONA BUFFER
+========================= */
+function metersToLatLngDelta(lat, headingRad, meters) {
+    const dLat = (Math.cos(headingRad) * meters) / 111320;
+    const dLng = (Math.sin(headingRad) * meters) / (111320 * Math.cos(lat * Math.PI / 180));
+    return { dLat, dLng };
+}
+
+function positionFromOffset(lat, lng, upMeters, sideMeters = 0, forwardMeters = 0) {
+    const latOffset = forwardMeters / 111320;
+    const lngOffset = sideMeters / (111320 * Math.cos(lat * Math.PI / 180));
+    return Cesium.Cartesian3.fromDegrees(lng + lngOffset, lat + latOffset, upMeters);
+}
+
+function removeAvatarParts() {
+    if (!cesiumReady || !cesiumViewer) return;
+    avatarParts.forEach(entity => cesiumViewer.entities.remove(entity));
+    avatarParts = [];
+}
+
+function initAvatar3D() {
+    if (!cesiumReady || !cesiumViewer || typeof Cesium === 'undefined') return;
+    removeAvatarParts();
+    const common = { outline: true, outlineColor: Cesium.Color.WHITE.withAlpha(0.75) };
+    const body = cesiumViewer.entities.add({
+        name: '🎮 Avatar Explorer',
+        position: Cesium.Cartesian3.fromDegrees(avatarState.lng, avatarState.lat, 8),
+        box: { dimensions: new Cesium.Cartesian3(6, 4, 10), material: Cesium.Color.fromCssColorString('#8b5cf6').withAlpha(0.95), ...common },
+        description: '<b>Avatar 3D</b><br>Gunakan W/A/S/D atau panah untuk menjelajah kota.'
+    });
+    const head = cesiumViewer.entities.add({
+        name: 'Avatar Head',
+        position: Cesium.Cartesian3.fromDegrees(avatarState.lng, avatarState.lat, 16),
+        ellipsoid: { radii: new Cesium.Cartesian3(3.2, 3.2, 3.2), material: Cesium.Color.fromCssColorString('#f4a261').withAlpha(0.98), outline: true, outlineColor: Cesium.Color.WHITE }
+    });
+    const leftLeg = cesiumViewer.entities.add({
+        name: 'Avatar Left Leg',
+        position: Cesium.Cartesian3.fromDegrees(avatarState.lng, avatarState.lat, 2.5),
+        box: { dimensions: new Cesium.Cartesian3(2, 2, 5), material: Cesium.Color.fromCssColorString('#2563eb').withAlpha(0.95), ...common }
+    });
+    const rightLeg = cesiumViewer.entities.add({
+        name: 'Avatar Right Leg',
+        position: Cesium.Cartesian3.fromDegrees(avatarState.lng, avatarState.lat, 2.5),
+        box: { dimensions: new Cesium.Cartesian3(2, 2, 5), material: Cesium.Color.fromCssColorString('#2563eb').withAlpha(0.95), ...common }
+    });
+    const label = cesiumViewer.entities.add({
+        name: 'Avatar Label',
+        position: Cesium.Cartesian3.fromDegrees(avatarState.lng, avatarState.lat, 23),
+        label: {
+            text: 'YOU', font: '900 14px sans-serif', fillColor: Cesium.Color.WHITE,
+            outlineColor: Cesium.Color.BLACK, outlineWidth: 3, style: Cesium.LabelStyle.FILL_AND_OUTLINE,
+            verticalOrigin: Cesium.VerticalOrigin.BOTTOM, disableDepthTestDistance: Number.POSITIVE_INFINITY
+        }
+    });
+    avatarParts = [body, head, leftLeg, rightLeg, label];
+    updateAvatarVisuals();
+}
+
+function updateAvatarVisuals() {
+    if (!cesiumReady || !cesiumViewer || typeof Cesium === 'undefined' || !avatarParts.length) return;
+    const { lat, lng } = avatarState;
+    avatarParts[0].position = positionFromOffset(lat, lng, 8, 0, 0);
+    avatarParts[1].position = positionFromOffset(lat, lng, 16, 0, 0);
+    avatarParts[2].position = positionFromOffset(lat, lng, 2.5, -1.4, 0);
+    avatarParts[3].position = positionFromOffset(lat, lng, 2.5, 1.4, 0);
+    avatarParts[4].position = positionFromOffset(lat, lng, 23, 0, 0);
+}
+
+function updateGameCamera() {
+    if (!gameModeActive || !cesiumReady || !cesiumViewer || typeof Cesium === 'undefined') return;
+    const target = Cesium.Cartesian3.fromDegrees(avatarState.lng, avatarState.lat, 8);
+    cesiumViewer.camera.lookAt(target, new Cesium.HeadingPitchRange(
+        Cesium.Math.toRadians(avatarState.heading),
+        Cesium.Math.toRadians(-22),
+        115
+    ));
+}
+
+function updateGameHud(loc, distance) {
+    const hud = document.getElementById('game-hud');
+    const status = document.getElementById('game-zone-status');
+    if (!hud || !status) return;
+    hud.classList.remove('hidden');
+    if (!loc) {
+        status.className = 'mt-3 rounded-2xl bg-slate-50 border border-slate-100 p-3 text-[11px] font-bold text-slate-500';
+        status.innerHTML = 'Belum masuk zona buffer.';
+        return;
+    }
+    const safeClass = loc.type === 'leisure' ? 'game-zone-safe' : 'game-zone-risk';
+    status.className = `mt-3 rounded-2xl border p-3 text-[11px] font-bold ${safeClass}`;
+    status.innerHTML = `\n        <div class="text-[10px] uppercase tracking-wider opacity-80">Masuk Zona Buffer</div>\n        <div class="text-sm font-black mt-1">${loc.type === 'leisure' ? '🌿' : '🌙'} ${loc.name}</div>\n        <div class="mt-1">Jarak avatar: ${formatDistance(distance)} dari objek.</div>\n    `;
+}
+
+function checkAvatarBufferZone() {
+    if (!gameModeActive) return;
+    const radius = getBufferRadius();
+    let nearest = null;
+    let nearestDistance = Infinity;
+    locations.forEach(loc => {
+        const d = haversineDistance(avatarState.lat, avatarState.lng, loc.coord[0], loc.coord[1]);
+        if (d <= radius && d < nearestDistance) {
+            nearest = loc;
+            nearestDistance = d;
+        }
+    });
+
+    if (nearest) {
+        updateGameHud(nearest, nearestDistance);
+        if (lastDetectedZoneName !== nearest.name) {
+            lastDetectedZoneName = nearest.name;
+            updateSidebarInfo(nearest);
+            updateSpatialAnalysisOutput(generateLocationAnalysisHTML(nearest));
+            safeStatus(`🎮 Avatar masuk buffer ${nearest.name}: ${formatDistance(nearestDistance)}.`);
+        }
+    } else {
+        lastDetectedZoneName = null;
+        updateGameHud(null, null);
+    }
+}
+
+function gameLoop() {
+    if (!gameModeActive) return;
+    const turnSpeed = 2.2;
+    const moveSpeed = pressedKeys.has('shift') ? 10 : 5;
+    let moved = false;
+
+    if (pressedKeys.has('q')) avatarState.heading -= turnSpeed;
+    if (pressedKeys.has('e')) avatarState.heading += turnSpeed;
+    if (pressedKeys.has('arrowleft')) avatarState.heading -= turnSpeed;
+    if (pressedKeys.has('arrowright')) avatarState.heading += turnSpeed;
+
+    const headingRad = Cesium.Math.toRadians(avatarState.heading);
+    if (pressedKeys.has('w') || pressedKeys.has('arrowup')) {
+        const delta = metersToLatLngDelta(avatarState.lat, headingRad, moveSpeed);
+        avatarState.lat += delta.dLat; avatarState.lng += delta.dLng; moved = true;
+    }
+    if (pressedKeys.has('s') || pressedKeys.has('arrowdown')) {
+        const delta = metersToLatLngDelta(avatarState.lat, headingRad, -moveSpeed);
+        avatarState.lat += delta.dLat; avatarState.lng += delta.dLng; moved = true;
+    }
+    if (pressedKeys.has('a')) {
+        const delta = metersToLatLngDelta(avatarState.lat, headingRad - Math.PI / 2, moveSpeed);
+        avatarState.lat += delta.dLat; avatarState.lng += delta.dLng; moved = true;
+    }
+    if (pressedKeys.has('d')) {
+        const delta = metersToLatLngDelta(avatarState.lat, headingRad + Math.PI / 2, moveSpeed);
+        avatarState.lat += delta.dLat; avatarState.lng += delta.dLng; moved = true;
+    }
+
+    avatarState.heading = (avatarState.heading + 360) % 360;
+    if (moved || pressedKeys.size) {
+        updateAvatarVisuals();
+        updateGameCamera();
+        checkAvatarBufferZone();
+    }
+    gameLoopId = requestAnimationFrame(gameLoop);
+}
+
+window.startGameMode3D = function() {
+    if (!cesiumReady || !cesiumViewer) {
+        set3DUnavailable('3D belum aktif. Coba refresh atau cek koneksi internet.');
+        return;
+    }
+    window.switchEngine('3d');
+    gameModeActive = true;
+    document.getElementById('game-hud')?.classList.remove('hidden');
+    if (!avatarParts.length) initAvatar3D();
+    updateAvatarVisuals();
+    updateGameCamera();
+    checkAvatarBufferZone();
+    if (!gameLoopId) gameLoopId = requestAnimationFrame(gameLoop);
+    safeStatus('🎮 3D Game Mode aktif. Gerakkan karakter dengan W/A/S/D atau panah.');
+};
+
+window.stopGameMode3D = function() {
+    gameModeActive = false;
+    if (gameLoopId) cancelAnimationFrame(gameLoopId);
+    gameLoopId = null;
+    pressedKeys.clear();
+    document.getElementById('game-hud')?.classList.add('hidden');
+    if (cesiumReady && cesiumViewer && typeof Cesium !== 'undefined') {
+        cesiumViewer.camera.lookAtTransform(Cesium.Matrix4.IDENTITY);
+    }
+};
+
+window.resetAvatarPosition = function() {
+    avatarState = { lat: -7.7712, lng: 110.3995, heading: 0, speed: 0 };
+    lastDetectedZoneName = null;
+    updateAvatarVisuals();
+    updateGameCamera();
+    updateGameHud(null, null);
+    safeStatus('Avatar dikembalikan ke titik awal.');
+};
+
+window.focusLocationIn3D = function(lat, lng, name) {
+    if (!cesiumReady || !cesiumViewer || typeof Cesium === 'undefined') {
+        leafletMap.setView([lat, lng], 17);
+        safeStatus('3D belum aktif. Lokasi dibuka di peta 2D.');
+        return;
+    }
+    window.switchEngine('3d');
+    const loc = locations.find(item => item.name === name) || locations.find(item => item.coord[0] === lat && item.coord[1] === lng);
+    if (loc) {
+        updateSidebarInfo(loc);
+        updateSpatialAnalysisOutput(generateLocationAnalysisHTML(loc));
+    }
+    cesiumViewer.camera.flyTo({
+        destination: Cesium.Cartesian3.fromDegrees(lng, lat, 450),
+        orientation: { heading: Cesium.Math.toRadians(0), pitch: Cesium.Math.toRadians(-45), roll: 0 },
+        duration: 1.4
+    });
+    safeStatus(`3D fokus ke ${name}. Tekan tombol Jelajah untuk menggerakkan avatar.`);
+};
+
+window.addEventListener('keydown', (event) => {
+    const key = event.key.toLowerCase();
+    if (['w','a','s','d','q','e','shift','arrowup','arrowdown','arrowleft','arrowright'].includes(key)) {
+        pressedKeys.add(key);
+        if (gameModeActive) event.preventDefault();
+    }
+});
+
+window.addEventListener('keyup', (event) => {
+    pressedKeys.delete(event.key.toLowerCase());
+});
+
+/* =========================
+   FITUR 4C: AKTIVITAS REAL-TIME DARI OSM
+========================= */
+function activityKindFromTags(tags = {}) {
+    const leisure = tags.leisure || '';
+    const amenity = tags.amenity || '';
+    const sport = tags.sport || '';
+    if (/park|garden|nature_reserve/i.test(leisure)) return { title: 'Jalan Santai & Relaksasi', icon: '🌿', tone: 'emerald' };
+    if (/fitness|sports|pitch|stadium/i.test(leisure) || /fitness|yoga|running/i.test(sport)) return { title: 'Olahraga Ringan Warga', icon: '🏃', tone: 'amber' };
+    if (/library/i.test(amenity)) return { title: 'Ruang Baca Tenang', icon: '📚', tone: 'sky' };
+    if (/community_centre/i.test(amenity)) return { title: 'Aktivitas Komunitas', icon: '🤝', tone: 'violet' };
+    if (/place_of_worship/i.test(amenity)) return { title: 'Relaksasi Spiritual', icon: '🕊️', tone: 'rose' };
+    return { title: 'Aktivitas Publik Terdekat', icon: '📍', tone: 'slate' };
+}
+
+function getActivityCoords(element) {
+    if (Number.isFinite(element.lat) && Number.isFinite(element.lon)) return [element.lat, element.lon];
+    if (element.center && Number.isFinite(element.center.lat) && Number.isFinite(element.center.lon)) return [element.center.lat, element.center.lon];
+    return null;
+}
+
+function escapeHTML(value) {
+    return String(value)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+}
+
+function renderActivityCards(items, sourceLabel = 'OpenStreetMap') {
+    const container = document.getElementById('live-activity-list');
+    if (!container) return;
+    if (!items.length) {
+        renderFallbackActivityCards('Database lokal');
+        return;
+    }
+    const toneClass = {
+        emerald: 'bg-emerald-50 border-emerald-100 text-emerald-600',
+        amber: 'bg-amber-50 border-amber-100 text-amber-600',
+        sky: 'bg-sky-50 border-sky-100 text-sky-600',
+        violet: 'bg-violet-50 border-violet-100 text-violet-600',
+        rose: 'bg-rose-50 border-rose-100 text-rose-600',
+        slate: 'bg-slate-50 border-slate-100 text-slate-600'
+    };
+    container.innerHTML = items.slice(0, 4).map(item => {
+        const coords = item.coords;
+        const styleClass = toneClass[item.kind.tone] || toneClass.slate;
+        const safeName = escapeHTML(item.name);
+        const safeKeyword = escapeHTML(item.keyword);
+        const safeTitle = escapeHTML(item.kind.title);
+        return `
+            <div onclick="focusLocationIn3D(${coords[0]}, ${coords[1]}, 'Aktivitas Publik')" class="activity-live-card p-3 rounded-2xl border cursor-pointer ${styleClass}">
+                <span class="text-xs font-black block uppercase">${safeTitle} ${item.kind.icon}</span>
+                <span class="text-[10px] font-bold text-slate-700 block mt-1">${safeName}</span>
+                <span class="text-[10px] font-medium text-slate-500 block mt-1">Data ${sourceLabel} • keyword: ${safeKeyword}</span>
+            </div>
+        `;
+    }).join('');
+}
+
+function renderFallbackActivityCards(sourceLabel = 'Database lokal') {
+    const fallback = locations.filter(loc => loc.type === 'leisure').slice(0, 4).map(loc => ({
+        name: loc.name,
+        coords: loc.coord,
+        keyword: 'leisure/local database',
+        kind: { title: 'Rekomendasi Relaksasi', icon: '🌿', tone: 'emerald' }
+    }));
+    renderActivityCards(fallback, sourceLabel);
+}
+
+window.fetchLiveActivities = async function(force = false) {
+    const container = document.getElementById('live-activity-list');
+    if (container) {
+        container.innerHTML = '<div class="p-3 rounded-2xl bg-slate-50 border border-slate-100 text-[11px] text-slate-500 font-bold">Mengambil data publik dari internet...</div>';
+    }
+    const bounds = getProjectBounds();
+    const query = `
+        [out:json][timeout:15];
+        (
+          node["leisure"~"park|garden|fitness_centre|sports_centre"](${bounds.south},${bounds.west},${bounds.north},${bounds.east});
+          way["leisure"~"park|garden|fitness_centre|sports_centre"](${bounds.south},${bounds.west},${bounds.north},${bounds.east});
+          node["amenity"~"library|community_centre|place_of_worship"](${bounds.south},${bounds.west},${bounds.north},${bounds.east});
+          way["amenity"~"library|community_centre|place_of_worship"](${bounds.south},${bounds.west},${bounds.north},${bounds.east});
+          node["sport"~"yoga|fitness|running"](${bounds.south},${bounds.west},${bounds.north},${bounds.east});
+        );
+        out center;
+    `;
+    try {
+        const res = await fetch('https://overpass-api.de/api/interpreter', {
+            method: 'POST',
+            headers: { 'Content-Type': 'text/plain;charset=UTF-8' },
+            body: query
+        });
+        if (!res.ok) throw new Error(`Overpass ${res.status}`);
+        const data = await res.json();
+        const seen = new Set();
+        const items = (data.elements || [])
+            .map(el => {
+                const coords = getActivityCoords(el);
+                const tags = el.tags || {};
+                const name = tags.name || tags['name:id'] || tags['name:en'];
+                if (!coords || !name || seen.has(name)) return null;
+                seen.add(name);
+                const keyword = tags.leisure || tags.amenity || tags.sport || 'public place';
+                return { name, coords, keyword, kind: activityKindFromTags(tags) };
+            })
+            .filter(Boolean)
+            .slice(0, 8);
+        if (!items.length) throw new Error('Tidak ada hasil OSM bernama');
+        renderActivityCards(items, 'OpenStreetMap live');
+        safeStatus(`Aktivitas real-time: ${items.length} tempat publik ditemukan dari OSM.`);
+    } catch (err) {
+        console.warn('Aktivitas real-time gagal, fallback lokal dipakai:', err);
+        renderFallbackActivityCards('fallback lokal');
+        safeStatus('Aktivitas internet gagal dimuat. Sistem memakai fallback database lokal.');
+    }
 };
 
 /* =========================
@@ -724,30 +1189,36 @@ function injectAnalyticsDashboard() {
     const mainArea = document.querySelector('main');
     if (!mainArea || document.getElementById('analytics-banner')) return;
 
+    const total = locations.length;
+    const leisureCount = locations.filter(loc => loc.type === 'leisure').length;
+    const nightCount = locations.filter(loc => loc.type === 'night').length;
+    const avgStress = Math.round(locations.reduce((sum, loc) => sum + calculateStressScore(loc), 0) / total);
+    const radius = getBufferRadius();
+
     const banner = document.createElement('div');
     banner.id = 'analytics-banner';
     banner.className = 'col-span-1 lg:col-span-4 bg-white border border-slate-100 rounded-3xl p-5 grid grid-cols-2 md:grid-cols-4 gap-4 shadow-xl shadow-slate-200/50 mb-2 relative overflow-hidden';
     banner.innerHTML = `
         <div class="absolute -right-10 -top-10 w-32 h-32 bg-indigo-100 rounded-full blur-3xl pointer-events-none"></div>
         <div class="border-r border-slate-100 p-2 text-center md:text-left z-10">
-            <span class="text-[10px] uppercase font-bold tracking-widest text-slate-400 block">Urban Stress Index</span>
-            <span class="text-2xl font-black text-emerald-500">42.8%</span>
-            <span class="text-[10px] font-medium text-slate-500 block mt-1">Kondisi Mikro Terkendali</span>
+            <span class="text-[10px] uppercase font-bold tracking-widest text-slate-400 block">Rata-rata Stress Score</span>
+            <span class="text-2xl font-black text-emerald-500">${avgStress}/100</span>
+            <span class="text-[10px] font-medium text-slate-500 block mt-1">Dihitung dari jarak RTH dan hiburan</span>
         </div>
         <div class="border-r border-slate-100 p-2 text-center md:text-left z-10">
             <span class="text-[10px] uppercase font-bold tracking-widest text-slate-400 block">Total Active Hubs</span>
-            <span id="analytics-count" class="text-2xl font-black text-slate-800">26 / 26 Spot</span>
-            <span class="text-[10px] font-medium text-slate-500 block mt-1">Sinkronisasi Database Aktif</span>
+            <span id="analytics-count" class="text-2xl font-black text-slate-800">${total} Spot</span>
+            <span class="text-[10px] font-medium text-slate-500 block mt-1">${leisureCount} RTH, ${nightCount} hiburan</span>
         </div>
         <div class="border-r border-slate-100 p-2 text-center md:text-left z-10">
-            <span class="text-[10px] uppercase font-bold tracking-widest text-slate-400 block">LOD 3D Coverage</span>
-            <span class="text-2xl font-black text-indigo-500">98.5%</span>
-            <span class="text-[10px] font-medium text-slate-500 block mt-1">Topologi Geometri Valid</span>
+            <span class="text-[10px] uppercase font-bold tracking-widest text-slate-400 block">3D Source</span>
+            <span class="text-2xl font-black text-indigo-500">OSM</span>
+            <span class="text-[10px] font-medium text-slate-500 block mt-1">Fallback block aktif bila API lambat</span>
         </div>
         <div class="p-2 text-center md:text-left z-10">
             <span class="text-[10px] uppercase font-bold tracking-widest text-slate-400 block">Relief Buffer Radius</span>
-            <span class="text-2xl font-black text-amber-500">3 Level</span>
-            <span class="text-[10px] font-medium text-slate-500 block mt-1">Jangkauan Efektif RTH Aktif</span>
+            <span class="text-2xl font-black text-amber-500">${radius} m</span>
+            <span class="text-[10px] font-medium text-slate-500 block mt-1">Dipakai oleh 2D dan 3D Game</span>
         </div>
     `;
     mainArea.insertBefore(banner, mainArea.firstChild);
@@ -755,31 +1226,24 @@ function injectAnalyticsDashboard() {
 
 /* =========================
    FETCH BOUNDARY GEOJSON
+   Garis dash hijau dari file lama sengaja tidak ditampilkan.
+   File depok.geojson tetap dibaca untuk menjaga alur sinkronisasi, tetapi tidak digambar di peta.
 ========================= */
 fetch('data/depok.geojson')
 .then(res => res.json())
-.then(geojsonData => {
+.then(() => {
     document.getElementById('system-status').textContent = "Spatial Engine: Database Synced";
-    
-    boundaryLayer2D = L.geoJSON(geojsonData, {
-        style: { color: "#10b981", weight: 3, fillColor: "#10b981", fillOpacity: 0.05, dashArray: "5, 5" }
-    }).addTo(leafletMap);
-    
-    if (cesiumReady && cesiumViewer) {
-        Cesium.GeoJsonDataSource.load(geojsonData, {
-            stroke: Cesium.Color.SPRINGGREEN, fill: Cesium.Color.SPRINGGREEN.withAlpha(0.05), strokeWidth: 4, clampToGround: true
-        }).then(ds => cesiumViewer.dataSources.add(ds)).catch(e => console.warn('Boundary 3D dilewati:', e));
-    }
-
     injectAnalyticsDashboard();
     renderLeafletFeatures();
     renderCesiumFeatures();
+    window.fetchLiveActivities(false);
 })
-.catch(err => {
+.catch(() => {
     document.getElementById('system-status').textContent = "Spatial Engine: Ready";
     injectAnalyticsDashboard();
     renderLeafletFeatures();
     renderCesiumFeatures();
+    window.fetchLiveActivities(false);
 });
 
 /* =========================
@@ -810,9 +1274,9 @@ function generatePremiumPopupHTML(loc) {
                     📍 ${loc.alamat}
                 </div>
                 
-                <button onclick="calculateRoute(${loc.coord[0]}, ${loc.coord[1]}, '${loc.name.replace(/'/g, "\\'")}')" 
-                    style="width:100%; margin-top:14px; padding:10px; background:linear-gradient(90deg, #38bdf8, #6366f1); color:#fff; border:none; border-radius:12px; font-size:12px; font-weight:bold; cursor:pointer; box-shadow:0 4px 12px rgba(99,102,241,0.3); transition: transform 0.2s;">
-                    🚗 Rute Navigasi Kesini
+                <button onclick="focusLocationIn3D(${loc.coord[0]}, ${loc.coord[1]}, '${loc.name.replace(/'/g, "\\'")}')" 
+                    style="width:100%; margin-top:14px; padding:10px; background:linear-gradient(90deg, #8b5cf6, #6366f1); color:#fff; border:none; border-radius:12px; font-size:12px; font-weight:bold; cursor:pointer; box-shadow:0 4px 12px rgba(99,102,241,0.3); transition: transform 0.2s;">
+                    🎮 Lihat di 3D Game
                 </button>
             </div>
         </div>
@@ -858,39 +1322,65 @@ function renderLeafletFeatures() {
    RENDER CESIUM FEATURES
 ========================= */
 function renderCesiumFeatures() {
-    if (!cesiumReady || !cesiumViewer) return;
+    if (!cesiumReady || !cesiumViewer || typeof Cesium === 'undefined') return;
     cesiumEntities.forEach(e => cesiumViewer.entities.remove(e));
     cesiumEntities = [];
 
     const showLeisure = document.getElementById('check-leisure')?.checked;
     const showNight = document.getElementById('check-night')?.checked;
+    const radius = getBufferRadius();
 
     locations.forEach(loc => {
-        let layerVisible = (loc.type === 'leisure' && showLeisure) || (loc.type === 'night' && showNight);
+        const layerVisible = (loc.type === 'leisure' && showLeisure) || (loc.type === 'night' && showNight);
+        if (!layerVisible) return;
 
-        if (layerVisible) {
-            let color = loc.type === 'leisure' ? Cesium.Color.SPRINGGREEN : Cesium.Color.CRIMSON;
+        const color = loc.type === 'leisure' ? Cesium.Color.fromCssColorString('#10b981') : Cesium.Color.fromCssColorString('#f43f5e');
+        const height = loc.type === 'leisure' ? 34 : 46;
+        const markerEntity = cesiumViewer.entities.add({
+            name: "📍 " + loc.name,
+            position: Cesium.Cartesian3.fromDegrees(loc.coord[1], loc.coord[0], height),
+            cylinder: {
+                length: height,
+                topRadius: 8,
+                bottomRadius: 13,
+                material: color.withAlpha(0.86),
+                outline: true,
+                outlineColor: Cesium.Color.WHITE.withAlpha(0.9)
+            },
+            description: generatePremiumPopupHTML(loc),
+            customData: loc,
+            label: {
+                text: loc.name,
+                font: '900 13px sans-serif',
+                fillColor: Cesium.Color.WHITE,
+                outlineColor: Cesium.Color.BLACK,
+                outlineWidth: 3,
+                style: Cesium.LabelStyle.FILL_AND_OUTLINE,
+                verticalOrigin: Cesium.VerticalOrigin.BOTTOM,
+                pixelOffset: new Cesium.Cartesian2(0, -28),
+                disableDepthTestDistance: Number.POSITIVE_INFINITY,
+                distanceDisplayCondition: new Cesium.DistanceDisplayCondition(0, 3500)
+            }
+        });
+        cesiumEntities.push(markerEntity);
 
-            let entity = cesiumViewer.entities.add({
-                name: "📍 " + loc.name,
-                position: Cesium.Cartesian3.fromDegrees(loc.coord[1], loc.coord[0], 50),
-                point: {
-                    pixelSize: 15, color: color, outlineColor: Cesium.Color.WHITE, outlineWidth: 3,
-                    heightReference: Cesium.HeightReference.CLAMP_TO_GROUND, disableDepthTestDistance: Number.POSITIVE_INFINITY
-                },
-                description: generatePremiumPopupHTML(loc),
-                customData: loc, // PENTING BUAT SIDEBAR KLIK
-                label: {
-                    text: loc.name, font: '900 13px sans-serif', fillColor: Cesium.Color.WHITE,
-                    outlineColor: Cesium.Color.BLACK, outlineWidth: 3, style: Cesium.LabelStyle.FILL_AND_OUTLINE,
-                    verticalOrigin: Cesium.VerticalOrigin.BOTTOM, pixelOffset: new Cesium.Cartesian2(0, -20),
-                    heightReference: Cesium.HeightReference.CLAMP_TO_GROUND, disableDepthTestDistance: Number.POSITIVE_INFINITY,
-                    distanceDisplayCondition: new Cesium.DistanceDisplayCondition(0, 3000)
-                }
-            });
-            cesiumEntities.push(entity);
-        }
+        const bufferEntity = cesiumViewer.entities.add({
+            name: `Buffer ${radius} m - ${loc.name}`,
+            position: Cesium.Cartesian3.fromDegrees(loc.coord[1], loc.coord[0], 0.7),
+            ellipse: {
+                semiMajorAxis: radius,
+                semiMinorAxis: radius,
+                height: 0,
+                material: color.withAlpha(loc.type === 'leisure' ? 0.08 : 0.06),
+                outline: true,
+                outlineColor: color.withAlpha(0.45)
+            },
+            customData: loc
+        });
+        cesiumEntities.push(bufferEntity);
     });
+
+    if (avatarParts.length) updateAvatarVisuals();
 }
 
 /* =========================
@@ -908,6 +1398,7 @@ window.switchEngine = function(type) {
     const elCesium = document.getElementById('map-cesium');
 
     if (type === '2d') {
+        window.stopGameMode3D?.();
         elLeaflet.style.zIndex = '10'; elLeaflet.style.display = 'block';
         elCesium.style.zIndex = '0'; elCesium.style.display = 'none';
         btn2d.className = "px-5 py-2 text-xs font-bold rounded-xl bg-white text-indigo-600 shadow-md cursor-pointer transition-all";
@@ -917,6 +1408,7 @@ window.switchEngine = function(type) {
         elLeaflet.style.zIndex = '0'; elLeaflet.style.display = 'none';
         btn3d.className = "px-5 py-2 text-xs font-bold rounded-xl bg-white text-indigo-600 shadow-md cursor-pointer transition-all";
         btn2d.className = "px-5 py-2 text-xs font-bold rounded-xl text-slate-500 cursor-pointer hover:text-indigo-600 hover:bg-white/50 transition-all";
+        if (gameModeActive) document.getElementById('game-hud')?.classList.remove('hidden');
         setTimeout(() => { cesiumViewer.resize(); cesiumViewer.scene.requestRender(); }, 200);
     }
 }

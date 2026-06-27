@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>UrbanWellness GIS - GitHub Pages Fix</title>
+    <title>UrbanWellness GIS - 3D Game Mode Revision</title>
     <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
     
     <!-- Leaflet & Heatmap Plugin -->
@@ -229,27 +229,17 @@
                 </div>
             </div>
 
-            <!-- 4. Network & Analytics (Utuh) -->
+            <!-- 4. Kontrol Jelajah & Ukur Jarak -->
             <div class="bg-white/90 backdrop-blur-md border border-white rounded-3xl p-5 shadow-xl shadow-slate-200/50 flex-1">
                 <h2 class="text-xs font-black text-sky-500 uppercase tracking-wider mb-2 flex items-center gap-1.5">
-                    <span>🚶</span> Smart Routing & Network
+                    <span>🎮</span> Kontrol Jelajah & Ukur Jarak
                 </h2>
-                
-                <!-- Toggle Mode Jalan Kaki vs Kendaraan -->
-                <div class="bg-slate-50 p-2 rounded-xl mb-4 flex gap-2 border border-slate-200 mt-2">
-                    <label class="flex-1 flex justify-center items-center gap-1.5 bg-white px-2 py-2 rounded-lg shadow-sm cursor-pointer border border-sky-100 hover:bg-sky-50 transition">
-                        <input type="radio" name="route-mode" value="driving" checked class="accent-sky-500">
-                        <span class="text-[10px] font-bold text-slate-700">Kendaraan 🚗</span>
-                    </label>
-                    <label class="flex-1 flex justify-center items-center gap-1.5 bg-emerald-50 px-2 py-2 rounded-lg shadow-sm cursor-pointer border border-emerald-200 hover:bg-emerald-100 transition">
-                        <input type="radio" name="route-mode" value="foot" class="accent-emerald-500">
-                        <span class="text-[10px] font-bold text-emerald-700">Jalan Kaki 👟</span>
-                    </label>
-                </div>
-
                 <p class="text-[10px] text-slate-500 font-medium leading-relaxed mb-4">
-                    Kalkulasi rute cerdas menggunakan *Open Source Routing Machine* (OSRM). Temukan rute pejalan kaki paling rindang atau rute kendaraan tercepat.
+                    Garis rute dash yang tidak jelas sudah dihapus. Bagian ini sekarang fokus untuk jelajah 3D dan pengukuran jarak manual di peta 2D.
                 </p>
+                <button onclick="startGameMode3D()" class="w-full mb-3 text-xs bg-gradient-to-r from-violet-500 to-indigo-500 hover:from-violet-600 hover:to-indigo-600 text-white font-bold py-3 px-4 rounded-2xl cursor-pointer transition-colors shadow-lg flex justify-center items-center gap-2">
+                    🎮 Mulai Jelajah 3D
+                </button>
 
                 <!-- Fitur Ukur Jarak Manual ASLI LU -->
                 <button id="btn-distance-mode" onclick="toggleDistanceMode()" class="w-full text-xs bg-gradient-to-r from-sky-500 to-indigo-500 hover:from-sky-600 hover:to-indigo-600 text-white font-bold py-3 px-4 rounded-2xl cursor-pointer transition-colors shadow-lg flex justify-center items-center gap-2">
@@ -261,20 +251,19 @@
                 </div>
             </div>
 
-            <!-- 5. Event Kalender Mental Health -->
+            <!-- 5. Aktivitas Real-Time berbasis keyword OSM, bukan event palsu -->
             <div class="bg-white/90 backdrop-blur-md border border-white rounded-3xl p-5 shadow-xl shadow-slate-200/50">
-                <h2 class="text-xs font-black text-rose-500 uppercase tracking-wider mb-3 flex items-center gap-2">
-                    <span>📅</span> Kalender Aktivitas Warga
-                </h2>
-                <div class="flex flex-col gap-3">
-                    <div onclick="cesiumFlyTo(-7.770780, 110.381618)" class="p-3 rounded-2xl bg-rose-50 border border-rose-100 cursor-pointer hover:shadow-md hover:-translate-y-1 transition-all">
-                        <span class="text-xs font-black text-rose-600 block uppercase">Yoga Pagi Gratis 🧘‍♀️</span>
-                        <span class="text-[10px] font-medium text-slate-500 block mt-1">Wisdom Park UGM • Minggu, 06:00 WIB</span>
-                    </div>
-                    <div onclick="cesiumFlyTo(-7.777274, 110.387819)" class="p-3 rounded-2xl bg-amber-50 border border-amber-100 cursor-pointer hover:shadow-md hover:-translate-y-1 transition-all">
-                        <span class="text-xs font-black text-amber-600 block uppercase">Senam Relaksasi Warga 🤸‍♂️</span>
-                        <span class="text-[10px] font-medium text-slate-500 block mt-1">Auditorium UNY • Jumat, 07:00 WIB</span>
-                    </div>
+                <div class="flex items-start justify-between gap-3 mb-3">
+                    <h2 class="text-xs font-black text-rose-500 uppercase tracking-wider flex items-center gap-2">
+                        <span>📅</span> Aktivitas Warga Real-Time
+                    </h2>
+                    <button onclick="fetchLiveActivities(true)" class="text-[10px] font-black px-3 py-1.5 rounded-xl bg-rose-50 text-rose-600 border border-rose-100 hover:bg-rose-100 transition">Refresh</button>
+                </div>
+                <p class="text-[10px] text-slate-500 font-medium leading-relaxed mb-3">
+                    Kartu ini tidak memakai jadwal fiktif. Sistem mengambil tempat publik dari internet memakai keyword OSM seperti park, fitness, library, dan community centre. Jika API lambat, sistem memakai rekomendasi dari database lokal.
+                </p>
+                <div id="live-activity-list" class="flex flex-col gap-3">
+                    <div class="p-3 rounded-2xl bg-slate-50 border border-slate-100 text-[11px] text-slate-500 font-bold">Memuat aktivitas dari internet...</div>
                 </div>
             </div>
 
@@ -290,9 +279,12 @@
                     </div>
                     <span id="system-status" class="text-xs text-slate-500 font-bold uppercase tracking-wide">Connecting Spatial Engine...</span>
                 </div>
-                <div class="flex bg-slate-200/50 p-1.5 rounded-2xl border border-slate-200">
-                    <button id="btn-2d" onclick="switchEngine('2d')" class="px-5 py-2 text-xs font-bold rounded-xl bg-white text-indigo-600 shadow-md cursor-pointer transition-all">2D Map</button>
-                    <button id="btn-3d" onclick="switchEngine('3d')" class="px-5 py-2 text-xs font-bold rounded-xl text-slate-500 cursor-pointer hover:text-indigo-600 hover:bg-white/50 transition-all">3D Engine</button>
+                <div class="flex items-center gap-2">
+                    <div class="flex bg-slate-200/50 p-1.5 rounded-2xl border border-slate-200">
+                        <button id="btn-2d" onclick="switchEngine('2d')" class="px-5 py-2 text-xs font-bold rounded-xl bg-white text-indigo-600 shadow-md cursor-pointer transition-all">2D Map</button>
+                        <button id="btn-3d" onclick="switchEngine('3d')" class="px-5 py-2 text-xs font-bold rounded-xl text-slate-500 cursor-pointer hover:text-indigo-600 hover:bg-white/50 transition-all">3D Game Mode</button>
+                    </div>
+                    <button id="btn-start-game" onclick="startGameMode3D()" class="hidden md:inline-flex px-4 py-2 text-xs font-black rounded-2xl bg-violet-500 text-white shadow-md hover:bg-violet-600 active:scale-95 transition">🎮 Jelajah</button>
                 </div>
             </div>
             
@@ -300,6 +292,17 @@
                 <div id="map-leaflet" class="absolute inset-0 z-10"></div>
                 <!-- 🌍 KONTAINER PETA CESIUM -->
                 <div id="map-cesium" class="absolute inset-0 z-0"></div>
+                <div id="game-hud" class="hidden absolute left-4 bottom-4 z-[1600] max-w-sm bg-white/95 backdrop-blur-md rounded-3xl border border-violet-100 shadow-2xl p-4">
+                    <div class="flex items-center justify-between gap-3 mb-2">
+                        <div>
+                            <p class="text-[10px] font-black uppercase tracking-widest text-violet-500">3D Game Control</p>
+                            <h3 class="text-sm font-black text-slate-800">Jelajah Kota Interaktif</h3>
+                        </div>
+                        <button onclick="resetAvatarPosition()" class="text-[10px] font-black bg-violet-50 text-violet-600 border border-violet-100 px-3 py-1.5 rounded-xl">Reset</button>
+                    </div>
+                    <p class="text-[10px] text-slate-500 font-semibold leading-relaxed">W/A/S/D atau panah untuk bergerak. Q/E untuk berputar. Tahan Shift untuk lebih cepat. Info akan muncul saat karakter masuk ke zona buffer lokasi.</p>
+                    <div id="game-zone-status" class="mt-3 rounded-2xl bg-slate-50 border border-slate-100 p-3 text-[11px] font-bold text-slate-500">Belum masuk zona buffer.</div>
+                </div>
             </div>
         </section>
     </main>
