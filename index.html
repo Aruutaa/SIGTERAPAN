@@ -1,124 +1,338 @@
 <!DOCTYPE html>
-<html lang="id">
+<html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>WebGIS RTH dan Hiburan | Versi Revisi</title>
-  <link rel="preconnect" href="https://unpkg.com" />
-  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIINfQzB6+2MKHCkYcCL4bU9C8JM2/k92Y0=" crossorigin="" />
-  <link rel="stylesheet" href="css/style.css" />
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Smart City Depok - Fresh Engine</title>
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    
+    <!-- Leaflet & Heatmap Plugin -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet.heat/0.2.0/leaflet-heat.js"></script>
+    
+    <!-- 🌍 IMPORT CESIUM JS -->
+    <script src="https://cesium.com/downloads/cesiumjs/releases/1.115/Build/Cesium/Cesium.js"></script>
+    <link href="https://cesium.com/downloads/cesiumjs/releases/1.115/Build/Cesium/Widgets/widgets.css" rel="stylesheet">
+
+    <link rel="stylesheet" href="css/style.css" />
 </head>
-<body>
-  <audio id="backsound" src="assets/audio/backsound.wav" loop preload="auto"></audio>
+<body class="bg-gradient-to-tr from-sky-50 via-purple-50 to-emerald-50 text-slate-700 font-sans antialiased min-h-screen flex flex-col transition-all duration-500 overflow-x-hidden">
 
-  <div class="app-shell">
-    <aside class="sidebar" id="sidebar">
-      <div class="brand-card">
-        <p class="eyebrow">WebGIS Revisi</p>
-        <h1>Analisis RTH dan Hiburan</h1>
-        <p>Fitur dibuat fokus, klik aktif, heatmap berbasis titik data, buffer jelas, dan panel tidak menutup muka peta.</p>
-      </div>
+    <!-- Intro Screen (Colorful & Cheerful) -->
+    <div id="intro-screen" class="fixed inset-0 bg-gradient-to-br from-indigo-500 via-purple-500 to-pink-500 z-[9999] flex flex-col justify-between p-6 md:p-12 transition-all duration-1000 opacity-100 overflow-y-auto">
+        <div class="absolute top-0 left-0 w-64 h-64 bg-white/20 rounded-full blur-3xl pointer-events-none"></div>
+        <div class="absolute bottom-0 right-0 w-96 h-96 bg-yellow-300/20 rounded-full blur-3xl pointer-events-none"></div>
 
-      <section class="panel-card">
-        <div class="section-title">
-          <h2>Kontrol Layer</h2>
-          <button class="mini-btn" id="btnReset" type="button">Reset</button>
+        <div class="w-full text-center md:text-left relative z-10">
+            <span class="text-[10px] md:text-xs font-bold tracking-[0.3em] uppercase text-indigo-900 bg-white/40 backdrop-blur-md px-4 py-2 rounded-full shadow-sm">
+                Spatial Architecture • Project Showcase
+            </span>
         </div>
 
-        <div class="toggle-row">
-          <div>
-            <strong>RTH</strong>
-            <small>Ruang terbuka hijau</small>
-          </div>
-          <button class="switch active" type="button" data-toggle="rth" aria-pressed="true"><span>ON</span></button>
+        <div class="max-w-5xl mx-auto text-center my-auto py-8 relative z-10">
+            <h2 class="text-xs md:text-sm font-black tracking-[0.5em] text-white/80 uppercase mb-4">SISTEM INFORMASI GEOGRAFIS</h2>
+            <h1 class="text-4xl md:text-7xl font-black text-white tracking-tight leading-none mb-4 drop-shadow-lg">
+                SMART <span class="text-yellow-300">CITY</span>
+            </h1>
+            <h3 class="text-xl md:text-3xl font-extrabold text-white/90 tracking-wide mb-6">
+                Environmental Stress Zone System
+            </h3>
+            <p class="text-sm md:text-base text-white/90 font-medium max-w-3xl mx-auto leading-relaxed border-t border-b border-white/20 py-4 mb-8">
+                "Pemetaan Zona Tingkat Stres Lingkungan Dan Distribusi Ruang Pemulihan Emosi (*Stress-Relief Hubs*) Untuk Mendukung Perencanaan Kota Pintar Berkelanjutan"
+            </p>
+            
+            <button onclick="exitIntroScreen()" class="group relative inline-flex items-center gap-3 bg-white text-indigo-600 font-black px-10 py-4 rounded-full text-sm transition-all shadow-xl hover:shadow-2xl hover:scale-105 cursor-pointer">
+                🚀 Masuk ke Peta
+                <span class="group-hover:translate-x-1.5 transition-transform text-xl">→</span>
+            </button>
         </div>
 
-        <div class="toggle-row">
-          <div>
-            <strong>Hiburan</strong>
-            <small>Karaoke, bar, lounge</small>
-          </div>
-          <button class="switch active" type="button" data-toggle="hiburan" aria-pressed="true"><span>ON</span></button>
+        <!-- TIM PENGEMBANG UTUH 100% -->
+        <div class="w-full max-w-7xl mx-auto pt-6 relative z-10">
+            <p class="text-xs font-bold tracking-widest text-white/80 uppercase text-center mb-4">Tim Pengembang Sistem</p>
+            <div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-3">
+                <div class="bg-white/20 backdrop-blur-md border border-white/30 p-3 rounded-2xl text-center shadow-lg hover:bg-white/30 transition">
+                    <span class="text-xs font-black text-white block truncate">A. Nisrina I.</span>
+                    <span class="text-[10px] font-bold text-yellow-200 block mt-1">117230006</span>
+                </div>
+                <div class="bg-white/20 backdrop-blur-md border border-white/30 p-3 rounded-2xl text-center shadow-lg hover:bg-white/30 transition">
+                    <span class="text-xs font-black text-white block truncate">Amelia Pitra S.</span>
+                    <span class="text-[10px] font-bold text-yellow-200 block mt-1">117230017</span>
+                </div>
+                <div class="bg-white/20 backdrop-blur-md border border-white/30 p-3 rounded-2xl text-center shadow-lg hover:bg-white/30 transition">
+                    <span class="text-xs font-black text-white block truncate">Dendi D.</span>
+                    <span class="text-[10px] font-bold text-yellow-200 block mt-1">117230024</span>
+                </div>
+                <div class="bg-white/20 backdrop-blur-md border border-white/30 p-3 rounded-2xl text-center shadow-lg hover:bg-white/30 transition">
+                    <span class="text-xs font-black text-white block truncate">Vera Agustin D.</span>
+                    <span class="text-[10px] font-bold text-yellow-200 block mt-1">117230025</span>
+                </div>
+                <div class="bg-white/20 backdrop-blur-md border border-white/30 p-3 rounded-2xl text-center shadow-lg hover:bg-white/30 transition">
+                    <span class="text-xs font-black text-white block truncate">Izza Anggitha</span>
+                    <span class="text-[10px] font-bold text-yellow-200 block mt-1">117230030</span>
+                </div>
+                <div class="bg-white/30 backdrop-blur-md border-2 border-yellow-300 p-3 rounded-2xl text-center shadow-lg hover:bg-white/40 transition">
+                    <span class="text-xs font-black text-white block truncate">Raihan Arsy R.</span>
+                    <span class="text-[10px] font-bold text-yellow-200 block mt-1">117230067</span>
+                </div>
+                <div class="bg-white/20 backdrop-blur-md border border-white/30 p-3 rounded-2xl text-center shadow-lg hover:bg-white/30 transition col-span-2 md:col-span-1">
+                    <span class="text-xs font-black text-white block truncate">Tsaqif Rajendra</span>
+                    <span class="text-[10px] font-bold text-yellow-200 block mt-1">117230083</span>
+                </div>
+            </div>
         </div>
+    </div>
 
-        <div class="toggle-row">
-          <div>
-            <strong>Heatmap</strong>
-            <small>Kepadatan dari titik aktual</small>
-          </div>
-          <button class="switch active" type="button" data-toggle="heatmap" aria-pressed="true"><span>ON</span></button>
+    <!-- WIDGET HEADER SMART CITY FRESH + KENYAMANAN -->
+    <header class="border-b border-white/50 bg-white/80 backdrop-blur-xl sticky top-0 z-[2000] px-6 py-3 flex justify-between items-center shadow-sm">
+        <div class="flex items-center gap-3">
+            <div class="w-10 h-10 rounded-full bg-gradient-to-tr from-emerald-400 to-teal-500 flex items-center justify-center shadow-md animate-bounce">
+                <span class="text-white text-lg">🌍</span>
+            </div>
+            <div class="flex flex-col">
+                <span class="font-black tracking-wide text-slate-800 text-lg leading-tight">Urban<span class="text-emerald-500 font-bold">Wellness</span></span>
+                <span class="text-indigo-500 font-bold text-[10px] uppercase tracking-widest leading-tight">Depok Anti-Stress Zone</span>
+            </div>
         </div>
+        
+        <div class="hidden md:flex items-center gap-5">
+            <!-- Indeks Kenyamanan Widget -->
+            <div class="flex items-center gap-3 bg-white px-4 py-1.5 rounded-full shadow-sm border border-slate-100">
+                <div class="w-8 h-8 rounded-full bg-emerald-100 border-2 border-emerald-400 flex items-center justify-center text-xs font-black text-emerald-600">85</div>
+                <div class="flex flex-col text-left">
+                    <span class="text-[9px] font-black text-slate-400 uppercase tracking-wider">Kenyamanan</span>
+                    <span class="text-[11px] font-bold text-emerald-500">Sangat Baik</span>
+                </div>
+            </div>
+            
+            <div class="flex items-center gap-2 bg-gradient-to-r from-sky-100 to-blue-50 px-4 py-2 rounded-2xl border border-sky-200 shadow-sm">
+                <span class="text-xl">🌤️</span>
+                <div class="flex flex-col">
+                    <span class="text-[10px] font-bold text-sky-600 leading-tight uppercase">Depok, ID</span>
+                    <span class="text-[11px] font-black text-slate-700 leading-tight">28°C - Cerah</span>
+                </div>
+            </div>
 
-        <div class="toggle-row">
-          <div>
-            <strong>Buffer</strong>
-            <small>Radius pengaruh spasial</small>
-          </div>
-          <button class="switch active" type="button" data-toggle="buffer" aria-pressed="true"><span>ON</span></button>
+            <div class="flex flex-col text-right border-r border-slate-200 pr-5">
+                <span id="live-time" class="text-sm font-black text-slate-800 leading-tight">00:00:00</span>
+                <span id="live-date" class="text-[10px] font-bold text-slate-500 leading-tight uppercase">Senin, 1 Jan 2026</span>
+            </div>
+
+            <button onclick="toggleBreathingModal()" class="bg-gradient-to-r from-emerald-400 to-teal-500 hover:from-emerald-500 hover:to-teal-600 text-white font-bold px-4 py-2.5 rounded-xl text-sm transition-all shadow-md cursor-pointer active:scale-95 flex items-center gap-2">
+                <span>🧘</span> Mood & Relax
+            </button>
+            <button id="btn-backsound" onclick="toggleBacksound()" class="bg-white hover:bg-indigo-50 text-indigo-600 border border-indigo-100 font-bold px-4 py-2.5 rounded-xl text-sm transition-all shadow-sm cursor-pointer active:scale-95 flex items-center gap-2">
+                🎵 Musik: OFF
+            </button>
         </div>
+    </header>
 
-        <div class="toggle-row">
-          <div>
-            <strong>Batas Area</strong>
-            <small>Area studi</small>
-          </div>
-          <button class="switch active" type="button" data-toggle="boundary" aria-pressed="true"><span>ON</span></button>
-        </div>
-      </section>
+    <main class="flex-1 max-w-[1400px] w-full mx-auto px-4 py-4 grid grid-cols-1 lg:grid-cols-4 gap-4 h-[calc(100vh-80px)]">
+        
+        <!-- SIDEBAR PANELS (Scrollable) -->
+        <aside class="flex flex-col gap-4 lg:col-span-1 overflow-y-auto custom-scrollbar pr-2 pb-10">
+            
+            <!-- 0. Pencari Relaksasi Terdekat -->
+            <div class="bg-gradient-to-br from-emerald-500 to-teal-600 rounded-3xl p-5 shadow-lg shadow-emerald-200/50 text-white relative overflow-hidden">
+                <div class="absolute -right-4 -top-4 text-6xl opacity-20">🍃</div>
+                <h2 class="text-sm font-black uppercase tracking-wider mb-2 relative z-10">Butuh Ketenangan?</h2>
+                <p class="text-[10px] text-emerald-100 mb-4 font-medium relative z-10">Sistem akan memprediksi & mencari ruang hijau, taman, atau tempat ibadah terdekat dari lokasi GPS Anda.</p>
+                <button onclick="findNearestRelaxation()" class="w-full py-2.5 bg-white text-emerald-600 font-black text-xs rounded-xl shadow-md hover:scale-105 transition-transform cursor-pointer flex justify-center items-center gap-2 relative z-10">
+                    📍 Cari Relaksasi Terdekat
+                </button>
+            </div>
 
-      <section class="panel-card">
-        <div class="section-title">
-          <h2>Buffer</h2>
-          <span class="badge" id="bufferLabel">500 m</span>
-        </div>
-        <label class="range-label" for="bufferRange">Radius buffer</label>
-        <input id="bufferRange" type="range" min="100" max="1000" value="500" step="50" />
+            <!-- 1. Papan Informasi Bangunan -->
+            <div class="bg-white/90 backdrop-blur-md border border-white rounded-3xl p-5 shadow-xl shadow-slate-200/50 flex flex-col min-h-[340px]">
+                <h2 class="text-xs font-black text-indigo-500 uppercase tracking-wider mb-3 flex items-center gap-2">
+                    <span>🏢</span> Informasi Lokasi
+                </h2>
+                <div id="info-board-content" class="flex-1 flex flex-col items-center justify-center text-center p-5 border-2 border-dashed border-slate-200 rounded-2xl bg-slate-50/50 transition-all">
+                    <span class="text-4xl mb-3 animate-bounce">👆</span>
+                    <p class="text-[11px] text-slate-500 font-medium leading-relaxed">Klik salah satu titik lokasi di peta (2D/3D) untuk melihat detail informasi bangunan di sini.</p>
+                </div>
+            </div>
 
-        <div class="segmented" role="group" aria-label="Sumber buffer">
-          <button type="button" class="segment active" data-buffer-source="all">Semua</button>
-          <button type="button" class="segment" data-buffer-source="RTH">RTH</button>
-          <button type="button" class="segment" data-buffer-source="Hiburan">Hiburan</button>
-        </div>
-        <p class="note">Buffer memakai satuan meter. Lingkaran tampil dari titik yang sedang aktif sesuai pilihan di atas.</p>
-      </section>
+            <!-- 2. Relief Hubs Filter -->
+            <div class="bg-white/90 backdrop-blur-md border border-white rounded-3xl p-5 shadow-xl shadow-slate-200/50">
+                <h2 class="text-xs font-black text-emerald-500 uppercase tracking-wider mb-3 flex items-center gap-2">
+                    <span>🗺️</span> Relief Hubs Filter
+                </h2>
+                <div class="space-y-3">
+                    <label class="flex items-center justify-between p-3 rounded-2xl bg-emerald-50/50 border border-emerald-100 cursor-pointer hover:bg-emerald-100 transition-colors">
+                        <div class="flex items-center gap-3">
+                            <input type="checkbox" id="check-leisure" checked onchange="toggleLayers()" class="accent-emerald-500 h-5 w-5">
+                            <span class="text-xs font-bold text-slate-700">RTH & Rekreasi (Taman)</span>
+                        </div>
+                        <span class="w-3 h-3 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]"></span>
+                    </label>
+                    <label class="flex items-center justify-between p-3 rounded-2xl bg-rose-50/50 border border-rose-100 cursor-pointer hover:bg-rose-100 transition-colors">
+                        <div class="flex items-center gap-3">
+                            <input type="checkbox" id="check-night" checked onchange="toggleLayers()" class="accent-rose-500 h-5 w-5">
+                            <span class="text-xs font-bold text-slate-700">Hiburan Malam (Club)</span>
+                        </div>
+                        <span class="w-3 h-3 rounded-full bg-rose-500 shadow-[0_0_8px_rgba(244,63,94,0.5)]"></span>
+                    </label>
+                </div>
+            </div>
 
-      <section class="panel-card">
-        <div class="section-title">
-          <h2>Cari Titik</h2>
-          <button class="mini-btn" id="btnFitAll" type="button">Fokus Semua</button>
-        </div>
-        <input class="search" id="searchInput" type="search" placeholder="Ketik nama lokasi..." />
-        <div class="result-list" id="resultList"></div>
-      </section>
+            <!-- 3. Analisis Spasial & Heatmap -->
+            <div class="bg-white/90 backdrop-blur-md border border-white rounded-3xl p-5 shadow-xl shadow-slate-200/50">
+                <h2 class="text-xs font-black text-orange-500 uppercase tracking-wider mb-3 flex items-center gap-2">
+                    <span>📊</span> Layer Analisis Spasial
+                </h2>
+                <div class="space-y-3">
+                    <label class="flex items-center justify-between p-3 rounded-2xl bg-slate-50 border border-slate-100 cursor-pointer hover:bg-orange-50 transition-colors">
+                        <div class="flex items-center gap-3">
+                            <input type="checkbox" id="layer-heatmap" onchange="toggleAnalyticsLayers()" class="accent-orange-500 h-5 w-5">
+                            <span class="text-[11px] font-bold text-slate-700">Heatmap Stres & Bising</span>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <span id="heatmap-toggle-label" class="toggle-badge off">OFF</span>
+                            <span class="text-xl">🔥</span>
+                        </div>
+                    </label>
+                    <label class="flex items-center justify-between p-3 rounded-2xl bg-slate-50 border border-slate-100 cursor-pointer hover:bg-teal-50 transition-colors">
+                        <div class="flex items-center gap-3">
+                            <input type="checkbox" id="layer-buffer" onchange="toggleAnalyticsLayers()" class="accent-teal-500 h-5 w-5">
+                            <span class="text-[11px] font-bold text-slate-700">Buffer Analisis</span>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <span id="buffer-toggle-label" class="toggle-badge off">OFF</span>
+                            <span class="text-xl">🎯</span>
+                        </div>
+                    </label>
 
-      <section class="panel-card analysis-card" id="analysisBox">
-        <h2>Hasil Analisis</h2>
-        <p class="muted">Klik salah satu marker untuk melihat analisis titik, jarak terdekat, dan status buffer.</p>
-        <div class="summary-grid" id="summaryGrid"></div>
-        <div id="detailAnalysis"></div>
-      </section>
-    </aside>
+                    <div class="bg-slate-50 border border-slate-100 rounded-2xl p-3 space-y-3">
+                        <div class="flex items-center justify-between gap-3">
+                            <label for="buffer-radius" class="text-[10px] font-black text-slate-500 uppercase tracking-wider">Radius Buffer</label>
+                            <span id="buffer-radius-label" class="text-[11px] font-black text-indigo-600 bg-white px-2 py-1 rounded-lg border border-indigo-100">500 m</span>
+                        </div>
+                        <input id="buffer-radius" type="range" min="100" max="1000" step="100" value="500" oninput="toggleAnalyticsLayers()" class="w-full accent-indigo-500">
+                        <select id="buffer-source" onchange="toggleAnalyticsLayers()" class="w-full text-[11px] font-bold bg-white border border-slate-200 rounded-xl px-3 py-2 text-slate-600">
+                            <option value="leisure">Buffer dari RTH / ruang pemulihan</option>
+                            <option value="night">Buffer dari hiburan malam</option>
+                            <option value="all">Buffer dari semua titik</option>
+                        </select>
+                    </div>
 
-    <main class="map-stage">
-      <header class="topbar">
-        <button class="hamburger" id="btnSidebar" type="button" aria-label="Tampilkan atau sembunyikan panel">☰</button>
-        <div>
-          <strong>Peta Interaktif</strong>
-          <span>Semua tombol dapat diklik dan langsung mengubah peta.</span>
-        </div>
-        <button class="music-btn" id="musicToggle" type="button">♫ Musik: OFF</button>
-      </header>
-      <div id="map"></div>
-      <div class="legend" id="legend">
-        <div><span class="dot rth"></span> RTH</div>
-        <div><span class="dot hiburan"></span> Hiburan</div>
-        <div><span class="heat-chip"></span> Heatmap: kepadatan titik</div>
-      </div>
+                    <div id="spatial-analysis-output" class="text-center p-4 border-2 border-dashed border-slate-200 rounded-2xl bg-slate-50/70">
+                        <span class="text-3xl block mb-2">📌</span>
+                        <p class="text-[11px] text-slate-500 font-medium leading-relaxed">Klik marker atau tekan tombol Jalankan Analisis untuk melihat hasil analisis spasial.</p>
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-2">
+                        <button onclick="runSpatialAnalysis()" class="text-[11px] font-black bg-indigo-500 hover:bg-indigo-600 text-white py-2.5 rounded-xl shadow-md transition active:scale-95">Jalankan Analisis</button>
+                        <button onclick="resetSpatialAnalysis()" class="text-[11px] font-black bg-white hover:bg-slate-50 text-slate-600 border border-slate-200 py-2.5 rounded-xl shadow-sm transition active:scale-95">Reset</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 4. Network & Analytics (Utuh) -->
+            <div class="bg-white/90 backdrop-blur-md border border-white rounded-3xl p-5 shadow-xl shadow-slate-200/50 flex-1">
+                <h2 class="text-xs font-black text-sky-500 uppercase tracking-wider mb-2 flex items-center gap-1.5">
+                    <span>🚶</span> Smart Routing & Network
+                </h2>
+                
+                <!-- Toggle Mode Jalan Kaki vs Kendaraan -->
+                <div class="bg-slate-50 p-2 rounded-xl mb-4 flex gap-2 border border-slate-200 mt-2">
+                    <label class="flex-1 flex justify-center items-center gap-1.5 bg-white px-2 py-2 rounded-lg shadow-sm cursor-pointer border border-sky-100 hover:bg-sky-50 transition">
+                        <input type="radio" name="route-mode" value="driving" checked class="accent-sky-500">
+                        <span class="text-[10px] font-bold text-slate-700">Kendaraan 🚗</span>
+                    </label>
+                    <label class="flex-1 flex justify-center items-center gap-1.5 bg-emerald-50 px-2 py-2 rounded-lg shadow-sm cursor-pointer border border-emerald-200 hover:bg-emerald-100 transition">
+                        <input type="radio" name="route-mode" value="foot" class="accent-emerald-500">
+                        <span class="text-[10px] font-bold text-emerald-700">Jalan Kaki 👟</span>
+                    </label>
+                </div>
+
+                <p class="text-[10px] text-slate-500 font-medium leading-relaxed mb-4">
+                    Kalkulasi rute cerdas menggunakan *Open Source Routing Machine* (OSRM). Temukan rute pejalan kaki paling rindang atau rute kendaraan tercepat.
+                </p>
+
+                <!-- Fitur Ukur Jarak Manual ASLI LU -->
+                <button id="btn-distance-mode" onclick="toggleDistanceMode()" class="w-full text-xs bg-gradient-to-r from-sky-500 to-indigo-500 hover:from-sky-600 hover:to-indigo-600 text-white font-bold py-3 px-4 rounded-2xl cursor-pointer transition-colors shadow-lg flex justify-center items-center gap-2">
+                    📏 Mode Ukur Jarak Manual
+                </button>
+                <div id="distance-result-panel" class="hidden mt-3 p-3 bg-sky-50 border border-sky-100 rounded-2xl text-center shadow-inner">
+                    <span class="text-[10px] font-bold text-sky-500 block uppercase tracking-wider mb-1">Hasil Kalkulasi Manual</span>
+                    <span id="distance-value" class="text-xl font-black text-sky-600 block">0 m</span>
+                </div>
+            </div>
+
+            <!-- 5. Event Kalender Mental Health -->
+            <div class="bg-white/90 backdrop-blur-md border border-white rounded-3xl p-5 shadow-xl shadow-slate-200/50">
+                <h2 class="text-xs font-black text-rose-500 uppercase tracking-wider mb-3 flex items-center gap-2">
+                    <span>📅</span> Kalender Aktivitas Warga
+                </h2>
+                <div class="flex flex-col gap-3">
+                    <div onclick="cesiumFlyTo(-7.770780, 110.381618)" class="p-3 rounded-2xl bg-rose-50 border border-rose-100 cursor-pointer hover:shadow-md hover:-translate-y-1 transition-all">
+                        <span class="text-xs font-black text-rose-600 block uppercase">Yoga Pagi Gratis 🧘‍♀️</span>
+                        <span class="text-[10px] font-medium text-slate-500 block mt-1">Wisdom Park UGM • Minggu, 06:00 WIB</span>
+                    </div>
+                    <div onclick="cesiumFlyTo(-7.777274, 110.387819)" class="p-3 rounded-2xl bg-amber-50 border border-amber-100 cursor-pointer hover:shadow-md hover:-translate-y-1 transition-all">
+                        <span class="text-xs font-black text-amber-600 block uppercase">Senam Relaksasi Warga 🤸‍♂️</span>
+                        <span class="text-[10px] font-medium text-slate-500 block mt-1">Auditorium UNY • Jumat, 07:00 WIB</span>
+                    </div>
+                </div>
+            </div>
+
+        </aside>
+
+        <!-- MAIN MAP SECTION -->
+        <section class="bg-white border-4 border-white rounded-3xl overflow-hidden shadow-2xl shadow-indigo-100/50 lg:col-span-3 flex flex-col relative h-full">
+            <div class="bg-slate-50/90 backdrop-blur-md px-5 py-3 border-b border-slate-100 flex justify-between items-center z-[1500]">
+                <div class="flex items-center gap-3">
+                    <div class="relative flex h-3 w-3">
+                        <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                        <span class="relative inline-flex rounded-full h-3 w-3 bg-emerald-500"></span>
+                    </div>
+                    <span id="system-status" class="text-xs text-slate-500 font-bold uppercase tracking-wide">Connecting Spatial Engine...</span>
+                </div>
+                <div class="flex bg-slate-200/50 p-1.5 rounded-2xl border border-slate-200">
+                    <button id="btn-2d" onclick="switchEngine('2d')" class="px-5 py-2 text-xs font-bold rounded-xl bg-white text-indigo-600 shadow-md cursor-pointer transition-all">2D Map</button>
+                    <button id="btn-3d" onclick="switchEngine('3d')" class="px-5 py-2 text-xs font-bold rounded-xl text-slate-500 cursor-pointer hover:text-indigo-600 hover:bg-white/50 transition-all">3D Engine</button>
+                </div>
+            </div>
+            
+            <div class="w-full flex-1 relative bg-slate-100">
+                <div id="map-leaflet" class="absolute inset-0 z-10"></div>
+                <!-- 🌍 KONTAINER PETA CESIUM -->
+                <div id="map-cesium" class="absolute inset-0 z-0"></div>
+            </div>
+        </section>
     </main>
-  </div>
 
-  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
-  <script src="https://unpkg.com/leaflet.heat/dist/leaflet-heat.js"></script>
-  <script src="js/app.js"></script>
+    <!-- Modal Nafas Fresh Theme + MOOD CHECK -->
+    <div id="breathing-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-md z-[3000] hidden flex items-center justify-center p-4 transition-opacity">
+        <div class="bg-white rounded-[3rem] p-8 max-w-lg w-full text-center shadow-2xl relative overflow-hidden">
+            <div class="absolute -top-20 -left-20 w-40 h-40 bg-emerald-100 rounded-full blur-3xl"></div>
+            <div class="absolute -bottom-20 -right-20 w-40 h-40 bg-sky-100 rounded-full blur-3xl"></div>
+            
+            <!-- Mood Check Area -->
+            <div class="mb-6 relative z-10 bg-slate-50 p-5 rounded-3xl border border-slate-100 shadow-inner">
+                <h4 class="text-xs font-black text-indigo-600 mb-4 uppercase tracking-wider">Mood Check Kota: Bagaimana perasaanmu saat ini?</h4>
+                <div class="flex justify-center gap-6">
+                    <button onclick="submitMood('buruk')" class="text-5xl hover:scale-125 transition-transform cursor-pointer filter grayscale hover:grayscale-0" title="Stres/Bising">😠</button>
+                    <button onclick="submitMood('sedang')" class="text-5xl hover:scale-125 transition-transform cursor-pointer filter grayscale hover:grayscale-0" title="Biasa saja">😐</button>
+                    <button onclick="submitMood('baik')" class="text-5xl hover:scale-125 transition-transform cursor-pointer filter grayscale hover:grayscale-0" title="Rileks">😃</button>
+                </div>
+            </div>
+
+            <h3 class="text-2xl font-black text-slate-800 mb-1 relative z-10">Tarik Nafas 🧘</h3>
+            <p class="text-[11px] font-bold text-slate-400 mb-6 relative z-10">Ikuti detak lingkaran di bawah untuk merilekskan pikiranmu</p>
+            
+            <div class="w-36 h-36 rounded-full bg-gradient-to-tr from-emerald-100 to-teal-50 mx-auto flex items-center justify-center breathing-bubble mb-6 shadow-inner relative z-10">
+                <div class="absolute inset-0 rounded-full border-4 border-emerald-200 animate-ping opacity-50"></div>
+                <span id="breath-text" class="text-emerald-600 font-black tracking-widest text-sm pointer-events-none uppercase">Inhale</span>
+            </div>
+            
+            <button onclick="toggleBreathingModal()" class="w-full bg-slate-800 hover:bg-slate-700 text-white font-bold py-3.5 rounded-2xl text-sm transition-colors cursor-pointer relative z-10 shadow-lg">Kembali ke Peta</button>
+        </div>
+    </div>
+
+    <!-- Memanggil Script Eksternal -->
+    <script src="js/app.js"></script>
 </body>
 </html>
