@@ -1,7 +1,7 @@
 /* =========================
    TOKEN CESIUM ION ACCESS
 ========================= */
-Cesium.Ion.defaultAccessToken = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJqdGkiOiJiOGY5MDc1YS04ZDdkLTQ3NWEtOGY4Yi1jNzExOGZlMTYzOGQiLCJpZCI6NDQ5MDg2LCJpc3MiOiJodHRwczovL2FwaS5jZXNpdW0uY29tIiwiYXVkIjoidW5kZWZpbmVkX2RlZmF1bHQiLCJpYXQiOjE3ODI0MDUzNzF9.ryph_Se5u0VPkhvN5q1iXI6dMpMdcU1dULqBlXhnF1E';
+const CESIUM_TOKEN = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJqdGkiOiJiOGY5MDc1YS04ZDdkLTQ3NWEtOGY4Yi1jNzExOGZlMTYzOGQiLCJpZCI6NDQ5MDg2LCJpc3MiOiJodHRwczovL2FwaS5jZXNpdW0uY29tIiwiYXVkIjoidW5kZWZpbmVkX2RlZmF1bHQiLCJpYXQiOjE3ODI0MDUzNzF9.ryph_Se5u0VPkhvN5q1iXI6dMpMdcU1dULqBlXhnF1E';
 
 /* =========================
    DATABASE SPASIAL LENGKAP (24 + Tambahan Fasilitas Relaksasi)
@@ -13,7 +13,7 @@ const locations = [
     { name: "Terrace Jogja Club", coord: [-7.77176, 110.40853], type: "night", rating: "4.5 ⭐", jam: "Senin–Minggu 19:00–03:00", alamat: "Jl. Seturan Raya No.4, Kledokan", image: "data/images/Terrace Jogja Club & Karaoke.jpg" },
     { name: "NAV Karaoke Keluarga", coord: [-7.783081, 110.409752], type: "night", rating: "4.4 ⭐", jam: "Senin–Minggu 12:00–00:00", alamat: "Jl. Laksda Adisucipto No.155A", image: "data/images/NAV Karaoke Keluarga Yogyakarta.jpg" },
     { name: "Queen Bar Jogja", coord: [-7.783, 110.3967], type: "night", rating: "4.0 ⭐", jam: "Door open 19:00–Selesai", alamat: "Jl. Laksda Adisucipto No.163", image: "data/images/Queen Bar Jogja.jpg" },
-    { name: "Hyperbox Family Karaoke", coord: [-7.77915, 110.41515], type: "night", rating: "4.1 ⭐", jam: "Senin–Minggu 10:30–02:30", alamat: "Jl. Babarsari Raya No.15", image: "data/images/Hyperbox Family Karaoke & Cafe-Resto.png" },
+    { name: "Hyperbox Family Karaoke", coord: [-7.77915, 110.41515], type: "night", rating: "4.1 ⭐", jam: "Senin–Minggu 10:30–02:30", alamat: "Jl. Babarsari Raya No.15", image: "data/images/Hyperbox Family Karaoke & Cafe-Resto.jpg" },
     { name: "Blackjack Executive Karaoke", coord: [-7.78105, 110.41413], type: "night", rating: "4.9 ⭐", jam: "Senin–Minggu 19:00–04:00", alamat: "Jl. Babarsari No.44", image: "data/images/Blackjack Executive Karaoke & Lounge.png" },
     { name: "ST.BIER Bar & Kitchen", coord: [-7.7679, 110.4006], type: "night", rating: "4.4 ⭐", jam: "Senin–Minggu 20:00–03:00", alamat: "Ruko Gatic, Jl. Perumnas No.83", image: "data/images/ST.BIER Bar & Kitchen.jpg" },
     { name: "The Gardens Jogja", coord: [-7.7705, 110.4089], type: "night", rating: "4.4 ⭐", jam: "Senin–Minggu 11:00–03:00", alamat: "Jl. Seturan Raya, Kledokan", image: "data/images/The Gardens Jogja.jpg" },
@@ -42,6 +42,7 @@ const locations = [
 ========================= */
 let leafletMap, leafletMarkerGroup, leafletGeometries = [], boundaryLayer2D;
 let cesiumViewer, cesiumEntities = [], currentEngine = '2d';
+let cesiumReady = false;
 
 // State Jarak Manual Asli
 let distancePointA = null, distancePointB = null, distanceMarkerA = null, distanceMarkerB = null, distanceLine = null;
@@ -76,44 +77,72 @@ leafletMarkerGroup = L.layerGroup().addTo(leafletMap);
 analyticsLayersGroup = L.layerGroup().addTo(leafletMap); // Layer khusus buat Heatmap & Buffer
 
 /* =========================
-   INITIALIZE 3D CESIUM ENGINE (SATELIT & CERAH)
+   INITIALIZE 3D CESIUM ENGINE (AMAN UNTUK GITHUB PAGES)
+   Jika CDN/Cesium gagal, fitur 2D tetap jalan.
 ========================= */
-cesiumViewer = new Cesium.Viewer('map-cesium', {
-    baseLayerPicker: false,
-    animation: false,
-    timeline: false,
-    sceneModePicker: false,
-    navigationHelpButton: false,
-    geocoder: false,
-    fullscreenButton: false,
-    infoBox: true,
-    requestRenderMode: false 
-});
+function set3DUnavailable(message) {
+    const statusEl = document.getElementById('system-status');
+    const btn3d = document.getElementById('btn-3d');
+    if (statusEl && message) statusEl.textContent = message;
+    if (btn3d) {
+        btn3d.classList.add('opacity-50', 'cursor-not-allowed');
+        btn3d.title = '3D tidak aktif. Cek koneksi, token Cesium, atau dukungan WebGL browser.';
+    }
+}
 
-cesiumViewer.imageryLayers.removeAll();
-cesiumViewer.imageryLayers.addImageryProvider(
-    new Cesium.ArcGisMapServerImageryProvider({
-        url: 'https://services.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer'
-    })
-);
-
-cesiumViewer.scene.globe.enableLighting = false;
-cesiumViewer.scene.globe.depthTestAgainstTerrain = false;
-cesiumViewer.cesiumWidget.creditContainer.style.display = 'none';
-
-try {
-    Cesium.createOsmBuildingsAsync().then(tileset => {
-        cesiumViewer.scene.primitives.add(tileset);
-        tileset.style = new Cesium.Cesium3DTileStyle({ 
-            color: "color('rgb(255, 255, 255)', 0.95)" 
+if (typeof Cesium !== 'undefined') {
+    try {
+        Cesium.Ion.defaultAccessToken = CESIUM_TOKEN;
+        cesiumViewer = new Cesium.Viewer('map-cesium', {
+            baseLayerPicker: false,
+            animation: false,
+            timeline: false,
+            sceneModePicker: false,
+            navigationHelpButton: false,
+            geocoder: false,
+            fullscreenButton: false,
+            infoBox: true,
+            requestRenderMode: false 
         });
-    });
-} catch(e) { console.warn('OSM Buildings dilompati:', e); }
 
-cesiumViewer.camera.setView({
-    destination: Cesium.Cartesian3.fromDegrees(110.3995, -7.79, 3000.0),
-    orientation: { heading: 0.0, pitch: Cesium.Math.toRadians(-40.0), roll: 0.0 }
-});
+        cesiumViewer.imageryLayers.removeAll();
+        cesiumViewer.imageryLayers.addImageryProvider(
+            new Cesium.ArcGisMapServerImageryProvider({
+                url: 'https://services.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer'
+            })
+        );
+
+        cesiumViewer.scene.globe.enableLighting = false;
+        cesiumViewer.scene.globe.depthTestAgainstTerrain = false;
+        if (cesiumViewer.cesiumWidget?.creditContainer) {
+            cesiumViewer.cesiumWidget.creditContainer.style.display = 'none';
+        }
+
+        cesiumReady = true;
+
+        Cesium.createOsmBuildingsAsync()
+            .then(tileset => {
+                if (!cesiumReady || !cesiumViewer) return;
+                cesiumViewer.scene.primitives.add(tileset);
+                tileset.style = new Cesium.Cesium3DTileStyle({ 
+                    color: "color('rgb(255, 255, 255)', 0.95)" 
+                });
+            })
+            .catch(e => console.warn('OSM Buildings dilompati:', e));
+
+        cesiumViewer.camera.setView({
+            destination: Cesium.Cartesian3.fromDegrees(110.3995, -7.79, 3000.0),
+            orientation: { heading: 0.0, pitch: Cesium.Math.toRadians(-40.0), roll: 0.0 }
+        });
+    } catch(e) {
+        cesiumReady = false;
+        console.warn('Cesium gagal dimuat, mode 2D tetap berjalan:', e);
+        set3DUnavailable('2D aktif. 3D tidak tersedia di browser ini.');
+    }
+} else {
+    cesiumReady = false;
+    set3DUnavailable('2D aktif. Cesium CDN gagal dimuat.');
+}
 
 /* =========================
    FITUR 1: DYNAMIC SIDEBAR INFO BOARD
@@ -150,62 +179,112 @@ window.updateSidebarInfo = function(loc) {
 };
 
 // Event Listener Cesium
-cesiumViewer.selectedEntityChanged.addEventListener(function(selectedEntity) {
-    if (selectedEntity && selectedEntity.customData) {
-        updateSidebarInfo(selectedEntity.customData);
-        updateSpatialAnalysisOutput(generateLocationAnalysisHTML(selectedEntity.customData));
-    }
-});
+if (cesiumReady && cesiumViewer) {
+    cesiumViewer.selectedEntityChanged.addEventListener(function(selectedEntity) {
+        if (selectedEntity && selectedEntity.customData) {
+            updateSidebarInfo(selectedEntity.customData);
+            updateSpatialAnalysisOutput(generateLocationAnalysisHTML(selectedEntity.customData));
+        }
+    });
+}
 
 /* =========================
    FITUR 2: SMART ROUTING & NETWORK ANALYST
    (Mendukung Mode 'Kendaraan' dan 'Jalan Kaki')
+   GitHub-safe: GPS/API gagal tetap ada fallback.
 ========================= */
-window.calculateRoute = function(destLat, destLng, destName) {
-    const statusEl = document.getElementById('system-status');
+function getSelectedRouteMode() {
     const routeModeInputs = document.querySelectorAll('input[name="route-mode"]');
     let mode = 'driving';
     routeModeInputs.forEach(input => {
         if (input.checked) mode = input.value;
     });
+    return mode;
+}
 
-    statusEl.textContent = "🛰️ Melacak lokasi GPS anda...";
+function getCurrentPositionOrMapCenter(callback) {
+    const useMapCenter = () => {
+        const center = leafletMap.getCenter();
+        callback(center.lat, center.lng, false);
+    };
 
-    if (navigator.geolocation) {
-        navigator.geolocation.getCurrentPosition((position) => {
-            const userLat = position.coords.latitude;
-            const userLng = position.coords.longitude;
-            
-            statusEl.textContent = "🛣️ Menghitung Rute Jaringan (OSRM)...";
-
-            const osrmUrl = `https://router.project-osrm.org/route/v1/${mode}/${userLng},${userLat};${destLng},${destLat}?overview=full&geometries=geojson`;
-            
-            fetch(osrmUrl)
-                .then(res => res.json())
-                .then(data => {
-                    if(data.routes && data.routes.length > 0) {
-                        drawNetworkRoute(data.routes[0], userLat, userLng, destName, mode);
-                    } else {
-                        statusEl.textContent = "❌ Rute tidak ditemukan.";
-                    }
-                })
-                .catch(err => {
-                    statusEl.textContent = "❌ Gagal memuat server rute.";
-                });
-
-        }, (error) => {
-            alert("Gagal mendapat lokasi. Pastikan GPS/Location browser menyala.");
-            statusEl.textContent = "❌ Izin lokasi ditolak.";
-        });
-    } else {
-        alert("Browser tidak mendukung geolokasi.");
+    if (!navigator.geolocation) {
+        useMapCenter();
+        return;
     }
+
+    navigator.geolocation.getCurrentPosition(
+        position => callback(position.coords.latitude, position.coords.longitude, true),
+        () => useMapCenter(),
+        { enableHighAccuracy: true, timeout: 8000, maximumAge: 60000 }
+    );
+}
+
+function drawDirectFallbackRoute(userLat, userLng, destLat, destLng, destName, mode) {
+    if (routingLayer2D) leafletMap.removeLayer(routingLayer2D);
+    if (userLocationMarker) leafletMap.removeLayer(userLocationMarker);
+    if (routingLayer3D && cesiumReady && cesiumViewer) cesiumViewer.dataSources.remove(routingLayer3D);
+
+    const routeColor = mode === 'foot' ? '#10b981' : '#3b82f6';
+    const routeDash = mode === 'foot' ? '10, 10' : '6, 6';
+    routingLayer2D = L.polyline([[userLat, userLng], [destLat, destLng]], {
+        color: routeColor,
+        weight: 5,
+        opacity: 0.85,
+        dashArray: routeDash
+    }).addTo(leafletMap);
+
+    userLocationMarker = L.circleMarker([userLat, userLng], {
+        radius: 10, fillColor: routeColor, color: '#fff', weight: 3, fillOpacity: 1
+    }).addTo(leafletMap).bindPopup('<b>📍 Titik awal</b>').openPopup();
+
+    leafletMap.fitBounds(routingLayer2D.getBounds(), { padding: [50, 50] });
+    const distanceKm = (haversineDistance(userLat, userLng, destLat, destLng) / 1000).toFixed(2);
+    document.getElementById('system-status').textContent = `⚠️ Server rute tidak merespon. Ditampilkan garis estimasi ke ${destName}: ${distanceKm} km.`;
+}
+
+function requestRouteWithFallback(profiles, index, userLat, userLng, destLat, destLng, destName, mode) {
+    if (index >= profiles.length) {
+        drawDirectFallbackRoute(userLat, userLng, destLat, destLng, destName, mode);
+        return;
+    }
+
+    const profile = profiles[index];
+    const osrmUrl = `https://router.project-osrm.org/route/v1/${profile}/${userLng},${userLat};${destLng},${destLat}?overview=full&geometries=geojson`;
+
+    fetch(osrmUrl)
+        .then(res => {
+            if (!res.ok) throw new Error('OSRM HTTP ' + res.status);
+            return res.json();
+        })
+        .then(data => {
+            if (data.routes && data.routes.length > 0) {
+                drawNetworkRoute(data.routes[0], userLat, userLng, destName, mode);
+            } else {
+                throw new Error('Rute kosong');
+            }
+        })
+        .catch(() => requestRouteWithFallback(profiles, index + 1, userLat, userLng, destLat, destLng, destName, mode));
+}
+
+window.calculateRoute = function(destLat, destLng, destName) {
+    const statusEl = document.getElementById('system-status');
+    const mode = getSelectedRouteMode();
+    const modeText = mode === 'foot' ? 'jalan kaki' : 'kendaraan';
+    statusEl.textContent = '🛰️ Mengambil lokasi. Jika GPS ditolak, sistem memakai titik tengah peta.';
+
+    getCurrentPositionOrMapCenter((userLat, userLng, fromGps) => {
+        const sourceText = fromGps ? 'GPS' : 'titik tengah peta';
+        statusEl.textContent = `🛣️ Menghitung rute ${modeText} dari ${sourceText}...`;
+        const profiles = mode === 'foot' ? ['foot', 'walking', 'driving'] : ['driving'];
+        requestRouteWithFallback(profiles, 0, userLat, userLng, destLat, destLng, destName, mode);
+    });
 };
 
 function drawNetworkRoute(routeData, userLat, userLng, destName, mode) {
     if (routingLayer2D) leafletMap.removeLayer(routingLayer2D);
     if (userLocationMarker) leafletMap.removeLayer(userLocationMarker);
-    if (routingLayer3D) cesiumViewer.dataSources.remove(routingLayer3D);
+    if (routingLayer3D && cesiumReady && cesiumViewer) cesiumViewer.dataSources.remove(routingLayer3D);
 
     const geoJson = routeData.geometry;
     const distanceKm = (routeData.distance / 1000).toFixed(2);
@@ -225,14 +304,16 @@ function drawNetworkRoute(routeData, userLat, userLng, destName, mode) {
 
     leafletMap.fitBounds(routingLayer2D.getBounds(), { padding: [50, 50] });
 
-    Cesium.GeoJsonDataSource.load(geoJson, {
-        stroke: mode === 'foot' ? Cesium.Color.SPRINGGREEN : Cesium.Color.DODGERBLUE,
-        strokeWidth: 8,
-        clampToGround: true
-    }).then(ds => {
-        routingLayer3D = ds;
-        cesiumViewer.dataSources.add(ds);
-    });
+    if (cesiumReady && cesiumViewer) {
+        Cesium.GeoJsonDataSource.load(geoJson, {
+            stroke: mode === 'foot' ? Cesium.Color.SPRINGGREEN : Cesium.Color.DODGERBLUE,
+            strokeWidth: 8,
+            clampToGround: true
+        }).then(ds => {
+            routingLayer3D = ds;
+            cesiumViewer.dataSources.add(ds);
+        }).catch(e => console.warn('Rute 3D dilewati:', e));
+    }
 
     const modeText = mode === 'foot' ? 'Jalan Kaki' : 'Kendaraan';
     document.getElementById('system-status').textContent = `✅ Rute ${modeText} ke ${destName}: ${distanceKm} km (${durationMin} mnt).`;
@@ -243,44 +324,34 @@ function drawNetworkRoute(routeData, userLat, userLng, destName, mode) {
 ========================= */
 window.findNearestRelaxation = function() {
     const statusEl = document.getElementById('system-status');
-    statusEl.textContent = "🔍 Mencari Ruang Hijau Terdekat...";
+    statusEl.textContent = '🔍 Mencari ruang hijau terdekat. Jika GPS ditolak, sistem memakai titik tengah peta.';
 
-    if (navigator.geolocation) {
-        navigator.geolocation.getCurrentPosition((position) => {
-            const userLat = position.coords.latitude;
-            const userLng = position.coords.longitude;
-            
-            let nearestLoc = null;
-            let minDistance = Infinity;
+    getCurrentPositionOrMapCenter((userLat, userLng, fromGps) => {
+        let nearestLoc = null;
+        let minDistance = Infinity;
 
-            // Hitung jarak garis lurus (Haversine) ke semua RTH/Leisure
-            locations.forEach(loc => {
-                if(loc.type === 'leisure') {
-                    const d = haversineDistance(userLat, userLng, loc.coord[0], loc.coord[1]);
-                    if(d < minDistance) {
-                        minDistance = d;
-                        nearestLoc = loc;
-                    }
+        locations.forEach(loc => {
+            if (loc.type === 'leisure') {
+                const d = haversineDistance(userLat, userLng, loc.coord[0], loc.coord[1]);
+                if (d < minDistance) {
+                    minDistance = d;
+                    nearestLoc = loc;
                 }
-            });
-
-            if(nearestLoc) {
-                const distKm = (minDistance / 1000).toFixed(2);
-                alert(`Ketemu! Lokasi anti-stres terdekat adalah ${nearestLoc.name} (${distKm} km). Rute cerdas sedang dihitung...`);
-                
-                // Set radio button ke Jalan kaki kalau deket (< 1.5km)
-                if(minDistance < 1500) {
-                    document.querySelector('input[name="route-mode"][value="foot"]').checked = true;
-                } else {
-                    document.querySelector('input[name="route-mode"][value="driving"]').checked = true;
-                }
-
-                // Update UI dan hitung rute OSRM
-                updateSidebarInfo(nearestLoc);
-                calculateRoute(nearestLoc.coord[0], nearestLoc.coord[1], nearestLoc.name);
             }
         });
-    }
+
+        if (nearestLoc) {
+            const distKm = (minDistance / 1000).toFixed(2);
+            const sourceText = fromGps ? 'posisi GPS' : 'titik tengah peta';
+            alert(`Lokasi anti-stres terdekat dari ${sourceText}: ${nearestLoc.name} (${distKm} km). Rute sedang dihitung.`);
+            document.querySelector(`input[name="route-mode"][value="${minDistance < 1500 ? 'foot' : 'driving'}"]`).checked = true;
+            updateSidebarInfo(nearestLoc);
+            updateSpatialAnalysisOutput(generateLocationAnalysisHTML(nearestLoc));
+            calculateRoute(nearestLoc.coord[0], nearestLoc.coord[1], nearestLoc.name);
+        } else {
+            statusEl.textContent = '❌ Tidak ada data RTH yang aktif.';
+        }
+    });
 };
 
 
@@ -523,8 +594,10 @@ window.runSpatialAnalysis = function() {
 };
 
 window.resetSpatialAnalysis = function() {
-    document.getElementById('layer-heatmap').checked = false;
-    document.getElementById('layer-buffer').checked = false;
+    const heatInput = document.getElementById('layer-heatmap');
+    const bufferInput = document.getElementById('layer-buffer');
+    if (heatInput) heatInput.checked = false;
+    if (bufferInput) bufferInput.checked = false;
     analyticsLayersGroup.clearLayers();
     activeHeatmapLayer = null;
     activeBufferLayers = [];
@@ -692,9 +765,11 @@ fetch('data/depok.geojson')
         style: { color: "#10b981", weight: 3, fillColor: "#10b981", fillOpacity: 0.05, dashArray: "5, 5" }
     }).addTo(leafletMap);
     
-    Cesium.GeoJsonDataSource.load(geojsonData, {
-        stroke: Cesium.Color.SPRINGGREEN, fill: Cesium.Color.SPRINGGREEN.withAlpha(0.05), strokeWidth: 4, clampToGround: true
-    }).then(ds => cesiumViewer.dataSources.add(ds));
+    if (cesiumReady && cesiumViewer) {
+        Cesium.GeoJsonDataSource.load(geojsonData, {
+            stroke: Cesium.Color.SPRINGGREEN, fill: Cesium.Color.SPRINGGREEN.withAlpha(0.05), strokeWidth: 4, clampToGround: true
+        }).then(ds => cesiumViewer.dataSources.add(ds)).catch(e => console.warn('Boundary 3D dilewati:', e));
+    }
 
     injectAnalyticsDashboard();
     renderLeafletFeatures();
@@ -783,6 +858,7 @@ function renderLeafletFeatures() {
    RENDER CESIUM FEATURES
 ========================= */
 function renderCesiumFeatures() {
+    if (!cesiumReady || !cesiumViewer) return;
     cesiumEntities.forEach(e => cesiumViewer.entities.remove(e));
     cesiumEntities = [];
 
@@ -821,6 +897,10 @@ function renderCesiumFeatures() {
    CORE UI INTERACTIONS & MOOD CHECK
 ========================= */
 window.switchEngine = function(type) {
+    if (type === '3d' && (!cesiumReady || !cesiumViewer)) {
+        set3DUnavailable('3D belum aktif. Mode 2D tetap berjalan normal.');
+        return;
+    }
     currentEngine = type;
     const btn2d = document.getElementById('btn-2d');
     const btn3d = document.getElementById('btn-3d');
@@ -842,6 +922,12 @@ window.switchEngine = function(type) {
 }
 
 window.cesiumFlyTo = function(lat, lng) {
+    if (!cesiumReady || !cesiumViewer) {
+        window.switchEngine('2d');
+        leafletMap.setView([lat, lng], 17);
+        document.getElementById('system-status').textContent = '3D tidak aktif. Lokasi dibuka di peta 2D.';
+        return;
+    }
     window.switchEngine('3d');
     cesiumViewer.camera.flyTo({
         destination: Cesium.Cartesian3.fromDegrees(lng, lat, 800),
@@ -913,3 +999,14 @@ window.toggleBacksound = function() {
 
 updateBufferRadiusLabel();
 updateToggleBadges();
+
+
+/* =========================
+   GITHUB PAGES STABILITY PATCH
+========================= */
+window.addEventListener('load', () => {
+    setTimeout(() => {
+        if (leafletMap) leafletMap.invalidateSize();
+        if (cesiumReady && cesiumViewer) cesiumViewer.resize();
+    }, 500);
+});
