@@ -1,0 +1,24 @@
+{
+  "type": "FeatureCollection",
+  "features": [
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "Batas Administrasi Kecamatan Depok",
+        "type": "boundary"
+      },
+      "geometry": {
+        "type": "MultiLineString",
+        "coordinates": [
+          [
+            [110.3816188, -7.770780239],
+            [110.3824664, -7.769121907],
+            [110.4208729, -7.771834823],
+            [110.4149624, -7.756185729],
+            [110.3995, -7.7712]
+          ]
+        ]
+      }
+    }
+  ]
+}

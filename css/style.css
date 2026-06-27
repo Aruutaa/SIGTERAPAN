@@ -1,0 +1,51 @@
+/* Scrollbar Sidebar yang Keren */
+.custom-scrollbar::-webkit-scrollbar { width: 6px; }
+.custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+.custom-scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
+.custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+
+/* Animasi nafas untuk fitur calming bubble */
+@keyframes breathe {
+    0%, 100% { transform: scale(1); box-shadow: 0 0 25px rgba(16, 185, 129, 0.2); }
+    50% { transform: scale(1.2); box-shadow: 0 0 60px rgba(16, 185, 129, 0.5); }
+}
+.breathing-bubble { animation: breathe 7s infinite ease-in-out; }
+
+#map-leaflet, #map-cesium { width: 100%; height: 100%; }
+#map-cesium { display: none; }
+
+/* Pulsing Marker Warna-warni */
+.smart-pulse-marker {
+    border-radius: 50%;
+    border: 3px solid #ffffff;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.3);
+    animation: pulseGlow 2s infinite;
+}
+@keyframes pulseGlow {
+    0% { box-shadow: 0 0 0 0px var(--marker-color); }
+    70% { box-shadow: 0 0 0 15px rgba(16, 185, 129, 0); }
+    100% { box-shadow: 0 0 0 0px rgba(16, 185, 129, 0); }
+}
+
+/* CUSTOM POPUP CERAH (LEAFLET) */
+.leaflet-popup-content-wrapper { background: transparent !important; box-shadow: none !important; padding: 0 !important; }
+.leaflet-popup-content { margin: 0 !important; }
+.leaflet-popup-tip-container { display: none !important; }
+.leaflet-popup-close-button {
+    color: #334155 !important; background: #ffffff !important; border-radius: 50% !important;
+    width: 32px !important; height: 32px !important; line-height: 32px !important; text-align: center;
+    top: -12px !important; right: -12px !important; z-index: 1000 !important; font-size: 18px !important;
+    font-weight: 900 !important; box-shadow: 0 4px 10px rgba(0,0,0,0.15) !important; transition: all 0.3s ease;
+}
+.leaflet-popup-close-button:hover { background: #f43f5e !important; color: white !important; transform: scale(1.1); }
+
+/* CUSTOM INFOBOX CERAH (CESIUM) */
+.cesium-infoBox {
+    background: rgba(255, 255, 255, 0.95) !important; backdrop-filter: blur(12px) !important;
+    border: 1px solid rgba(16, 185, 129, 0.2) !important; border-radius: 20px !important;
+    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.2) !important;
+}
+.cesium-infoBox-title {
+    background: #f8fafc !important; color: #0f172a !important; font-weight: 900 !important;
+    font-family: sans-serif !important; border-bottom: 1px solid #e2e8f0 !important;
+}
